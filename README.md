@@ -59,12 +59,12 @@ At the moment there are 9 stacks available:
 * SimpleSyncWorkflow - very easy setup, calls Textract Sync
 * SimpleAsyncWorkflow - easy, but with Async
 * SimpleSyncAndAsyncWorkflow  - both async and sync
-* SpacyPaystubW2 - with classification using Spacy
+* PaystubAndW2Spacy - with classification using Spacy
 * InsuranceStack - including A2I Construct call
 * AnalyzeID - only calling AnalyzeID
 * AnalyzeExpense - only calling AnalyzeExpense
 * DemoQueries - workflow with calling Textract + Queries for alldocs
-* PaystubAndW2 - using Comprehend classification
+* PaystubAndW2Comprehend - using Comprehend classification
 
 ```
 cdk synth (sample-stack-name)

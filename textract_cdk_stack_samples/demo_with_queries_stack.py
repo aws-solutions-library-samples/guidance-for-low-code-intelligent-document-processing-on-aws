@@ -72,7 +72,7 @@ class DemoQueries(Stack):
 
         textract_async_to_json = tcdk.TextractAsyncToJSON(
             self,
-            "TextractAsyncToJSON2",
+            "AsyncToJSON",
             s3_output_prefix=s3_output_prefix,
             s3_output_bucket=s3_output_bucket)
 
@@ -116,13 +116,30 @@ class DemoQueries(Stack):
                            .when(sfn.Condition.number_greater_than('$.Random.randomNumber', 50), async_chain)\
                            .otherwise(textract_sync_task)
 
+        number_queries_and_pages_choice = sfn.Choice(self, 'NumberQueriesAndPagesChoice') \
+            .when(sfn.Condition.or_(sfn.Condition.and_(sfn.Condition.is_present('$.numberOfQueries'),
+                                     sfn.Condition.number_greater_than('$.numberOfQueries', 15),
+                                                       sfn.Condition.number_less_than('$.numberOfQueries', 31)),
+                                    sfn.Condition.and_(sfn.Condition.is_present('$.numberOfPages'),
+                                     sfn.Condition.number_greater_than('$.numberOfPages', 1),
+                                     sfn.Condition.number_less_than_equals('$.numberOfPages', 3000))),
+                  async_chain) \
+            .when(sfn.Condition.or_(sfn.Condition.and_(sfn.Condition.is_present('$.numberOfQueries'),
+                                                       sfn.Condition.number_greater_than('$.numberOfQueries', 30)),
+                                    sfn.Condition.and_(sfn.Condition.is_present('$.numberOfPages'),
+                                    sfn.Condition.number_greater_than('$.numberOfPages', 3000))),
+                  sfn.Fail(self, 'TooManyQueriesOrPages',
+                           error="TooManyQueriesOrPages",
+                           cause="Too many queries > 30 or too many Pages > 3000. See https://docs.aws.amazon.com/textract/latest/dg/limits.html")) \
+            .otherwise(task_random_number)
+
         textract_sync_task.next(generate_csv)
         async_chain.next(generate_csv)
+        task_random_number.next(random_choice)
 
         workflow_chain = sfn.Chain \
             .start(decider_task) \
-            .next(task_random_number) \
-            .next(random_choice) \
+            .next(number_queries_and_pages_choice) \
 
         # GENERIC
         state_machine = sfn.StateMachine(self,

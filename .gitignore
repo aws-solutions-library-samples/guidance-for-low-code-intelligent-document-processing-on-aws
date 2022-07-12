@@ -22,3 +22,6 @@ venv.bak/
 cdk.out/
 .aws-sam/
 .#*
+
+# local dev stuff
+update_dependencies_local.sh

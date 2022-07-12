@@ -354,7 +354,7 @@ class PaystubAndW2Comprehend(Stack):
                                          f'PaystubW2',
                                          definition=workflow_chain)
 
-        lambda_step_start_step_function = lambda_.DockerImageFunction(
+        lambda_start_step_function = lambda_.DockerImageFunction(
             self,
             "LambdaStartStepFunctionGeneric",
             code=lambda_.DockerImageCode.from_image_asset(
@@ -362,14 +362,13 @@ class PaystubAndW2Comprehend(Stack):
             memory_size=128,
             environment={"STATE_MACHINE_ARN": state_machine.state_machine_arn})
 
-        lambda_step_start_step_function.add_to_role_policy(
+        lambda_start_step_function.add_to_role_policy(
             iam.PolicyStatement(actions=['states:StartExecution'],
                                 resources=[state_machine.state_machine_arn]))
 
         document_bucket.add_event_notification(
             s3.EventType.OBJECT_CREATED,
-            s3n.LambdaDestination(
-                lambda_step_start_step_function),  #type: ignore
+            s3n.LambdaDestination(lambda_start_step_function),  #type: ignore
             s3.NotificationKeyFilter(prefix=s3_upload_prefix))
 
         # OUTPUT
@@ -402,10 +401,9 @@ class PaystubAndW2Comprehend(Stack):
         CfnOutput(self,
                   "GenerateCSVLambdaLogGroup",
                   value=generate_text.generate_csv_log_group.log_group_name)
-        CfnOutput(
-            self,
-            "StartStepFunctionLambdaLogGroup",
-            value=lambda_step_start_step_function.log_group.log_group_name)
+        CfnOutput(self,
+                  "StartStepFunctionLambdaLogGroup",
+                  value=lambda_start_step_function.log_group.log_group_name)
         CfnOutput(self,
                   "ComprehendSyncLambdaLogGroup",
                   value=comprehend_sync_task.comprehend_sync_lambda_log_group.

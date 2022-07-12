@@ -326,20 +326,26 @@ class PaystubAndW2Spacy(Stack):
                            cause="Too many queries. > 30. See https://docs.aws.amazon.com/textract/latest/dg/limits.html")) \
             .otherwise(task_random_number2)
 
+        number_pages_choice = sfn.Choice(self, 'NumberPagesChoice') \
+            .when(sfn.Condition.and_(sfn.Condition.is_present('$.numberOfPages'),
+                                     sfn.Condition.number_greater_than('$.numberOfPages', 1)),
+                  sfn.Fail(self, "NumberOfPagesFail", error="NumberOfPagesError", cause="number of pages > 1")) \
+            .otherwise(task_random_number)
+
         textract_sync_task.next(generate_text)
         textract_async_to_json.next(generate_text)
         generate_text.next(spacy_classification_task)
         spacy_classification_task.next(doc_type_choice)
         configurator_task.next(number_queries_choice)
         task_random_number2.next(random_choice2)
+        task_random_number.next(random_choice)
         async_chain_with_config.next(generate_csv)
         textract_sync_task_with_config.next(generate_csv)
         generate_csv.next(csv_to_aurora_task)
 
         workflow_chain = sfn.Chain \
             .start(decider_task) \
-            .next(task_random_number) \
-            .next(random_choice) \
+            .next(number_pages_choice)
 
         # GENERIC
         state_machine = sfn.StateMachine(self,

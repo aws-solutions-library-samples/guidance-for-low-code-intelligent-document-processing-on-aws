@@ -10,6 +10,7 @@ from textract_cdk_stack_samples.paystub_w2_spacy import PaystubAndW2Spacy
 from textract_cdk_stack_samples.simple_async_workflow import SimpleAsyncWorkflow
 from textract_cdk_stack_samples.simple_sync_workflow import SimpleSyncWorkflow
 from textract_cdk_stack_samples.simple_async_and_sync_workflow import SimpleSyncAndAsyncWorkflow
+from textract_cdk_stack_samples.document_split_workflow import DocumentSplitterWorkflow
 
 app = cdk.App()
 
@@ -40,5 +41,6 @@ PaystubAndW2Spacy(app, "PaystubAndW2Spacy")
 SimpleAsyncWorkflow(app, "SimpleAsyncWorkflow")
 SimpleSyncWorkflow(app, "SimpleSyncWorkflow")
 SimpleSyncAndAsyncWorkflow(app, "SimpleSyncAndAsyncWorkflow")
+DocumentSplitterWorkflow(app, "DocumentSplitterWorkflow")
 
 app.synth()

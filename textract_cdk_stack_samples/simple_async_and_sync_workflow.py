@@ -101,6 +101,7 @@ class SimpleSyncAndAsyncWorkflow(Stack):
             code=lambda_.DockerImageCode.from_image_asset(
                 os.path.join(script_location, '../lambda/startstepfunction')),
             memory_size=128,
+            architecture=lambda_.Architecture.X86_64,
             environment={"STATE_MACHINE_ARN": state_machine.state_machine_arn})
 
         lambda_step_start_step_function.add_to_role_policy(

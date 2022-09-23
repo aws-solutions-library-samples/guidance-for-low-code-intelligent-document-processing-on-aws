@@ -144,7 +144,7 @@ cdk deploy DemoQueries
 ```
 
 Basic workflow to demonstrate how Sync and Async can be routed based on numberOfPages and numberOfQueries and how the workflow can be triggered with queries. 
-Calls AnalyzeDocument with the 2 sample queries. Obviously, modify to your own needs. The location in the code where queries are configed is [here](https://github.com/aws-samples/amazon-textract-idp-cdk-stack-samples/blob/471905e06786e0def269695d5585b39a0d77b825/lambda/start_queries/app/start_execution.py#L52) when kicking off the Step Functions workflow.
+Calls AnalyzeDocument with the 2 sample queries. Obviously, modify to your own needs. The location in the code where queries are configed when starting the workflow in the [lambda/start_queries/app/start_execution.py](https://github.com/aws-samples/amazon-textract-idp-cdk-stack-samples/blob/471905e06786e0def269695d5585b39a0d77b825/lambda/start_queries/app/start_execution.py#L52) when kicking off the Step Functions workflow.
 The GenerateCsvTask will output one CSV file to S3 with key/value, confidence scores and bounding box information based on the forms and queries output.
 
 <img alt="DemoQueries" width="400px" src="images/DemoQueries_graph.svg" />

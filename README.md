@@ -16,97 +16,72 @@
 
 This is a collection of sample workflows designed to showcase the usage of the [Amazon Textract IDP CDK Constructs](https://github.com/aws-samples/amazon-textract-idp-cdk-constructs/)
 
-This project is set up like a standard Python project.  The initialization
-process also creates a virtualenv within this project, stored under the `.venv`
-directory.  To create the virtualenv it assumes that there is a `python3`
-(or `python` for Windows) executable in your path with access to the `venv`
-package. If for any reason the automatic creation of the virtualenv fails,
-you can create the virtualenv manually.
+The samples use the [AWS Cloud Development Kit (AWS CDK)](https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html).
+Also it requires Docker.
 
-To manually create a virtualenv on MacOS and Linux:
+You can spin up a [AWS Cloud9](https://aws.amazon.com/cloud9/) instance, which has the AWS CDK and docker already set up.
 
-```
-python3 -m venv .venv
-```
-
-After the init process completes and the virtualenv is created, you can use the following
-step to activate your virtualenv.
-
-```
-source .venv/bin/activate
-```
-
-If you are a Windows platform, you would activate the virtualenv like this:
-
-```
-% .venv\Scripts\activate.bat
-```
-
-Once the virtualenv is activated, you can install the required dependencies.
+After cloning the repository, install the dependencies:
 
 ```
 pip install -r requirements.txt
 ```
 
-Now start Docker and login to your Docker account.
+Then deploy a stack, for example:
 
-The CDK Constructs will build Docker containers during the deploy cycle. 
+```
+cdk deploy DemoQueries
+```
 
-At this point you can now synthesize the CloudFormation template for this code.
 
-At the moment there are 9 stacks available:
+At the moment there are 10 stacks available:
 
-* SimpleSyncWorkflow - very easy setup, calls Textract Sync
-* SimpleAsyncWorkflow - easy, but with Async
+* SimpleSyncWorkflow - very easy setup, calls Textract Sync, expects single page
+* SimpleAsyncWorkflow - easy, but with Async and can take multi-page
 * SimpleSyncAndAsyncWorkflow  - both async and sync
-* PaystubAndW2Spacy - with classification using Spacy
+* PaystubAndW2Spacy - information extraction with classification using a [Spacy](https://spacy.io/) model.
+* PaystubAndW2Comprehend - information extraction with classification using a Comprehend model.
 * InsuranceStack - including A2I Construct call
 * AnalyzeID - only calling AnalyzeID
 * AnalyzeExpense - only calling AnalyzeExpense
 * DemoQueries - workflow with calling Textract + Queries for alldocs
-* PaystubAndW2Comprehend - using Comprehend classification
+* DocumentSplitterWorkflow - Example of splitting a multi-page document, classifying each page and extraction information depending on the document type for the page
 
-```
-cdk synth (sample-stack-name)
-```
 
-To add additional dependencies, for example other CDK libraries, just add
-them to your `setup.py` file and rerun the `pip install -r requirements.txt`
-command.
-
-Deploy the stack with following command
-```
-cdk deploy (sample-stack-name)
-```
-
-if you have not already setup your environment, run below command before cdk deploy
-```
-cdk bootstrap aws://<account>/<region>
-```
-
-You are all set with your deployment!
-
-## Useful commands
-
- * `cdk ls`          list all stacks in the app
- * `cdk synth`       emits the synthesized CloudFormation template
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk docs`        open CDK documentation
-
-Enjoy!
 # Sample Workflows
 
-## Paystub And W2 Comprehend
+
+## Document Splitter Workflow
+
+
+Deploy using
+```bash
+cdk deploy DocumentSplitterWorkflow
+```
+
+This samples includes a new component called DocumentSpliter, which takes and input document of type TIFF or PDF and outputs each individual page to an S3 location and adds the list of filenames to an array. 
+
+That array is then used in a [Step Functions Map state](https://docs.aws.amazon.com/step-functions/latest/dg/amazon-states-language-map-state.html) and processed in parallel. Each iteration classifies the page and then in case of a W2 or paystub routes to an extraction process or not. At the end all the W2s and Paystubs are extracted and the map returns and array with the page numbers and their classification result.
+
+<img alt="DocumentSplitter" width="400px" src="images/DocumentSplitter_graph.svg" />
+
+When you look at the execution in the AWS Web Console under Step Functions and look at the execution, you may not see the correct rending in the "Graph Insepctor" while the "Execution event history" is still loading indicated by the process circle spinning next to the "Execution event history" text. Wait for it to finish.
+
+We are planning to have a better UI experience in the future.
+
+
+## Paystub And W2 Spacy
+
+Deploy using
+```bash
+cdk deploy PaystubAndW2Spacy
+```
 
 This sample showcases a number of components, including classification using Comprehend and routing based on the document type, followed by configuration based on the document types.
+
 It is called Paystub and W2, because those are the ones configured in the RouteDocType and the DemoIDP-Configurator.
 
-At the moment it does single page, once we add the splitter we can have this flow as part of a map.
-
-Here is the flow:
-
-<img alt="PaystubAndW2Comprehend" width="800px" src="images/PaystubAndW2Comprehend_graph.svg" />
+At the moment it does single page, check the [Document Splitter Workflow](#document-splitter-workflow)
 
 Check the API definition for the Constructs at: https://github.com/aws-samples/amazon-textract-idp-cdk-constructs/blob/main/API.md
 
@@ -128,7 +103,33 @@ From top to bottom:
 
 The Aurora RDS Cluster runs in a private VPC. To get there, check the commented section for EC2 in the sample stack. Put in your setting for Security Groups, AMI and keypair. (We'll make it easier in the future)
 
+<img alt="PaystubAndW2Spacy_graph" width="800px" src="images/PaystubAndW2Spacy_graph.svg" />
+
+Simple example of a flow only calling synchronous Textract for DetectText.
+
+## Paystub And W2 Comprehend
+
+Deploy using
+```bash
+cdk deploy PaystubAndW2Comprehend
+```
+
+This sample showcases a number of components, including classification using Comprehend and routing based on the document type, followed by configuration based on the document types.
+It is called Paystub and W2, because those are the ones configured in the RouteDocType and the DemoIDP-Configurator.
+
+At the moment it does single page, check the [Document Splitter Workflow](#document-splitter-workflow)
+
+Here is the flow:
+
+<img alt="PaystubAndW2Comprehend" width="800px" src="images/PaystubAndW2Comprehend_graph.svg" />
+
+
 ## Simple Async Workflow
+
+Deploy using
+```bash
+cdk deploy SimpleAsyncWorkflow
+```
 
 Very basic workflow to demonstrate AsyncProcessing. This out-of-the-box will only call with DetectText, generating OCR output.
 When you are interested in running specific queries or features like forms or tables on a set of documents, look at [DemoQueries](#demo-queries)
@@ -136,6 +137,11 @@ When you are interested in running specific queries or features like forms or ta
 <img alt="SimpleAsyncWorkflow" width="400px" src="images/SimpleAsyncWorkflow_graph.svg" />
 
 ## Demo Queries
+
+Deploy using
+```bash
+cdk deploy DemoQueries
+```
 
 Basic workflow to demonstrate how Sync and Async can be routed based on numberOfPages and numberOfQueries and how the workflow can be triggered with queries. 
 Calls AnalyzeDocument with the 2 sample queries. Obviously, modify to your own needs. The location in the code where queries are configed is [here](https://github.com/aws-samples/amazon-textract-idp-cdk-stack-samples/blob/471905e06786e0def269695d5585b39a0d77b825/lambda/start_queries/app/start_execution.py#L52) when kicking off the Step Functions workflow.
@@ -145,19 +151,22 @@ The GenerateCsvTask will output one CSV file to S3 with key/value, confidence sc
 
 ## Insurance
 
+Deploy using
+```bash
+cdk deploy InsuranceStack
+```
+
 Simple flow including A2I 
 
 <img alt="Insurance" width="300px" src="images/Insurance_graph.svg" />
 
-## Paystub And W2 Spacy
-
-Similar to the Comprehend classification task, but implemented using Spacy textcat and deployed as a Lambda container instead of using a Comprehend endpoint.
-
-<img alt="PaystubAndW2Spacy_graph" width="800px" src="images/PaystubAndW2Spacy_graph.svg" />
-
-Simple example of a flow only calling synchronous Textract for DetectText.
 
 ## Simple Sync Workflow 
+
+Deploy using
+```bash
+cdk deploy SimpleAsyncWorkflow
+```
 
 <img alt="PaystubAndW2Spacy_graph" width="400px" src="images/SimpleSyncWorkflow_graph.svg" />
 
@@ -165,11 +174,21 @@ Simple flow calling the Textract AnalzyeID API.
 
 ## Analyze ID
 
+Deploy using
+```bash
+cdk deploy AnalyzeID
+```
+
 <img alt="AnalyzeID_graph" width="300px" src="images/AnalyzeID_graph.svg" />
 
 Simple flow calling the Textract AnalyzeExpense API.
 
 ## Analyze Expense
+
+Deploy using
+```bash
+cdk deploy AnalyzeExpense
+```
 
 <img alt="AnalyzeExpense_graph" width="300px" src="images/AnalyzeExpense_graph.svg" />
 

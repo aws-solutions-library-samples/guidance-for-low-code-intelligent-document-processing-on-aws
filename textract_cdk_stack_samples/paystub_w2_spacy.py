@@ -262,37 +262,36 @@ class PaystubAndW2Spacy(Stack):
             payload_response_only=True,
             result_path='$.Random')
 
-        # EC2 to access the DB
-        # sg = ec2.SecurityGroup(self, 'SSH', vpc=vpc, allow_all_outbound=True)
-        # sg.add_ingress_rule(ec2.Peer.prefix_list('somelist'),
-        #                     ec2.Port.tcp(22))
+        sg = ec2.SecurityGroup(self, 'SSH', vpc=vpc, allow_all_outbound=True)
+        sg.add_ingress_rule(ec2.Peer.prefix_list('pl-4e2ece27'),
+                            ec2.Port.tcp(22))
 
-        # instance_role = iam.Role(
-        #     self,
-        #     'RdsDataRole',
-        #     assumed_by=iam.ServicePrincipal('ec2.amazonaws.com'),
-        #     managed_policies=[
-        #         iam.ManagedPolicy.from_aws_managed_policy_name(
-        #             'AmazonRDSDataFullAccess')
-        #     ])
+        instance_role = iam.Role(
+            self,
+            'RdsDataRole',
+            assumed_by=iam.ServicePrincipal('ec2.amazonaws.com'),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    'AmazonRDSDataFullAccess')
+            ])
 
-        # mine = ec2.MachineImage.generic_linux(
-        #     {'us-east-1': "someAMI"})
-        # ec2_db_bastion = ec2.Instance(
-        #     self,
-        #     'DbBastion',
-        #     instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3,
-        #                                       ec2.InstanceSize.XLARGE),
-        #     machine_image=mine,
-        #     security_group=sg,
-        #     key_name='somekey',
-        #     role=instance_role,  #type: ignore
-        #     vpc=vpc,
-        #     vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC))
+        mine = ec2.MachineImage.generic_linux(
+            {'us-east-1': "ami-08c1cbdc7bae8c84b"})
+        ec2_db_bastion = ec2.Instance(
+            self,
+            'DbBastion',
+            instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3,
+                                              ec2.InstanceSize.XLARGE),
+            machine_image=mine,
+            security_group=sg,
+            key_name='internal-us-east-1',
+            role=instance_role,  #type: ignore
+            vpc=vpc,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC))
 
-        # ec2_db_bastion.add_security_group(
-        #     typing.cast(rds.ServerlessCluster, csv_to_aurora_task.db_cluster).
-        #     _security_groups[0])  #pyright: ignore [reportOptionalMemberAccess]
+        ec2_db_bastion.add_security_group(
+            typing.cast(rds.ServerlessCluster, csv_to_aurora_task.db_cluster).
+            _security_groups[0])  #pyright: ignore [reportOptionalMemberAccess]
 
         async_chain = sfn.Chain.start(textract_async_task).next(
             textract_async_to_json)

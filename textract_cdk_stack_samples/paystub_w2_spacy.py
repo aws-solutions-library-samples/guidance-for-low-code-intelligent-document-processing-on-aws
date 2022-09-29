@@ -1,9 +1,9 @@
 from constructs import Construct
 import os
-import typing
+# import typing
 import aws_cdk.aws_s3 as s3
-import aws_cdk.aws_ec2 as ec2
-import aws_cdk.aws_rds as rds
+# import aws_cdk.aws_ec2 as ec2
+# import aws_cdk.aws_rds as rds
 import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_stepfunctions_tasks as tasks
@@ -25,10 +25,7 @@ class PaystubAndW2Spacy(Stack):
         s3_csv_output_prefix = "csv_output"
         s3_txt_output_prefix = "txt_output"
 
-        # VPC
-        # vpc = ec2.Vpc.from_lookup(self, 'defaultVPC', is_default=True)
-
-        vpc = ec2.Vpc(self, "Vpc", cidr="10.0.0.0/16")
+        # vpc = ec2.Vpc(self, "Vpc", cidr="10.0.0.0/16")
 
         # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
         document_bucket = s3.Bucket(self,
@@ -36,7 +33,7 @@ class PaystubAndW2Spacy(Stack):
                                     auto_delete_objects=True,
                                     removal_policy=RemovalPolicy.DESTROY)
         s3_output_bucket = document_bucket.bucket_name
-        workflow_name = "SpacyDemoIDP"
+        workflow_name = "PaystubW2"
 
         decider_task = tcdk.TextractPOCDecider(
             self,
@@ -183,22 +180,22 @@ class PaystubAndW2Spacy(Stack):
             }),
             result_path="$.txt_output_location")
 
-        csv_to_aurora_task = tcdk.CSVToAuroraTask(
-            self,
-            "CsvToAurora",
-            vpc=vpc,
-            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-            lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
-            input=sfn.TaskInput.from_object({
-                "Token":
-                sfn.JsonPath.task_token,
-                "ExecutionId":
-                sfn.JsonPath.string_at('$$.Execution.Id'),
-                "Payload":
-                sfn.JsonPath.entire_payload
-            }),
-            result_path="$.textract_result")
+        # csv_to_aurora_task = tcdk.CSVToAuroraTask(
+        #     self,
+        #     "CsvToAurora",
+        #     vpc=vpc,
+        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+        #     lambda_log_level="DEBUG",
+        #     timeout=Duration.hours(24),
+        #     input=sfn.TaskInput.from_object({
+        #         "Token":
+        #         sfn.JsonPath.task_token,
+        #         "ExecutionId":
+        #         sfn.JsonPath.string_at('$$.Execution.Id'),
+        #         "Payload":
+        #         sfn.JsonPath.entire_payload
+        #     }),
+        #     result_path="$.textract_result")
 
         lambda_random_function = lambda_.DockerImageFunction(
             self,
@@ -262,36 +259,36 @@ class PaystubAndW2Spacy(Stack):
             payload_response_only=True,
             result_path='$.Random')
 
-        sg = ec2.SecurityGroup(self, 'SSH', vpc=vpc, allow_all_outbound=True)
-        sg.add_ingress_rule(ec2.Peer.prefix_list('pl-4e2ece27'),
-                            ec2.Port.tcp(22))
+        # sg = ec2.SecurityGroup(self, 'SSH', vpc=vpc, allow_all_outbound=True)
+        # sg.add_ingress_rule(ec2.Peer.prefix_list('pl-4e2ece27'),
+        #                     ec2.Port.tcp(22))
 
-        instance_role = iam.Role(
-            self,
-            'RdsDataRole',
-            assumed_by=iam.ServicePrincipal('ec2.amazonaws.com'),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    'AmazonRDSDataFullAccess')
-            ])
+        # instance_role = iam.Role(
+        #     self,
+        #     'RdsDataRole',
+        #     assumed_by=iam.ServicePrincipal('ec2.amazonaws.com'),
+        #     managed_policies=[
+        #         iam.ManagedPolicy.from_aws_managed_policy_name(
+        #             'AmazonRDSDataFullAccess')
+        #     ])
 
-        mine = ec2.MachineImage.generic_linux(
-            {'us-east-1': "ami-08c1cbdc7bae8c84b"})
-        ec2_db_bastion = ec2.Instance(
-            self,
-            'DbBastion',
-            instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3,
-                                              ec2.InstanceSize.XLARGE),
-            machine_image=mine,
-            security_group=sg,
-            key_name='internal-us-east-1',
-            role=instance_role,  #type: ignore
-            vpc=vpc,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC))
+        # mine = ec2.MachineImage.generic_linux(
+        #     {'us-east-1': "ami-08c1cbdc7bae8c84b"})
+        # ec2_db_bastion = ec2.Instance(
+        #     self,
+        #     'DbBastion',
+        #     instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3,
+        #                                       ec2.InstanceSize.XLARGE),
+        #     machine_image=mine,
+        #     security_group=sg,
+        #     key_name='internal-us-east-1',
+        #     role=instance_role,  #type: ignore
+        #     vpc=vpc,
+        #     vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC))
 
-        ec2_db_bastion.add_security_group(
-            typing.cast(rds.ServerlessCluster, csv_to_aurora_task.db_cluster).
-            _security_groups[0])  #pyright: ignore [reportOptionalMemberAccess]
+        # ec2_db_bastion.add_security_group(
+        #     typing.cast(rds.ServerlessCluster, csv_to_aurora_task.db_cluster).
+        #     _security_groups[0])  #pyright: ignore [reportOptionalMemberAccess]
 
         async_chain = sfn.Chain.start(textract_async_task).next(
             textract_async_to_json)
@@ -341,7 +338,7 @@ class PaystubAndW2Spacy(Stack):
         task_random_number.next(random_choice)
         async_chain_with_config.next(generate_csv)
         textract_sync_task_with_config.next(generate_csv)
-        generate_csv.next(csv_to_aurora_task)
+        # generate_csv.next(csv_to_aurora_task)
 
         workflow_chain = sfn.Chain \
             .start(decider_task) \
@@ -390,14 +387,14 @@ class PaystubAndW2Spacy(Stack):
                   textract_sync_lambda_log_group.log_group_name)
         # CfnOutput(self,
         #           "DashboardLink",
-        #           valu e=textract_sync_task.dashboard_name)
+        #           value=textract_sync_task.dashboard_name)
         CfnOutput(self,
                   "StateMachineARN",
                   value=textract_sync_task.state_machine.state_machine_arn)
-        CfnOutput(self,
-                  "CSVtoAuroraLambdaLogGroup",
-                  value=csv_to_aurora_task.csv_to_aurora_lambda_log_group.
-                  log_group_name)
+        # CfnOutput(self,
+        #           "CSVtoAuroraLambdaLogGroup",
+        #           value=csv_to_aurora_task.csv_to_aurora_lambda_log_group.
+        #           log_group_name)
         CfnOutput(self,
                   "GenerateCSVLambdaLogGroup",
                   value=generate_text.generate_csv_log_group.log_group_name)
@@ -414,33 +411,39 @@ class PaystubAndW2Spacy(Stack):
         CfnOutput(self,
                   "ConfiguratorFunctionLogGroup",
                   value=configurator_task.configurator_function_log_group_name)
-        CfnOutput(self,
-                  "DBClusterARN",
-                  value=csv_to_aurora_task.db_cluster.cluster_arn)
-        CfnOutput(self,
-                  "DBClusterSecretARN",
-                  value=typing.cast(rds.ServerlessCluster,
-                                    csv_to_aurora_task.db_cluster).secret.
-                  secret_arn)  #pyright: ignore [reportOptionalMemberAccess]
-        CfnOutput(self,
-                  "DBClusterEndpoint",
-                  value=typing.cast(
-                      rds.ServerlessCluster,
-                      csv_to_aurora_task.db_cluster).cluster_endpoint.hostname
-                  )  #pyright: ignore [reportOptionalMemberAccess]
-        CfnOutput(
-            self,
-            "DBClusterSecurityGroup",
-            value=typing.cast(
-                rds.ServerlessCluster,
-                csv_to_aurora_task.db_cluster)._security_groups[0].
-            security_group_id)  #pyright: ignore [reportOptionalMemberAccess]
+        # CfnOutput(self,
+        #           "DBClusterARN",
+        #           value=csv_to_aurora_task.db_cluster.cluster_arn)
+        # CfnOutput(self,
+        #           "DBClusterSecretARN",
+        #           value=typing.cast(rds.ServerlessCluster,
+        #                             csv_to_aurora_task.db_cluster).secret.
+        #           secret_arn)  #pyright: ignore [reportOptionalMemberAccess]
+        # CfnOutput(self,
+        #           "DBClusterEndpoint",
+        #           value=typing.cast(
+        #               rds.ServerlessCluster,
+        #               csv_to_aurora_task.db_cluster).cluster_endpoint.hostname
+        #           )  #pyright: ignore [reportOptionalMemberAccess]
+        # CfnOutput(
+        #     self,
+        #     "DBClusterSecurityGroup",
+        #     value=typing.cast(
+        #         rds.ServerlessCluster,
+        #         csv_to_aurora_task.db_cluster)._security_groups[0].
+        #     security_group_id)  #pyright: ignore [reportOptionalMemberAccess]
 
         # CfnOutput(self,
         #           "EC2_DB_BASTION_PUBLIC_DNS",
         #           value=ec2_db_bastion.instance_public_dns_name
         #           )  #pyright: ignore [reportOptionalMemberAccess]
         current_region = Stack.of(self).region
+        # https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#item-explorer?initialTagKey=&table=PaystubAndW2Spacy-SpacyDemoIDPConfiguratorTextractConfigurationTableFD1584D3-1GZTFKZXC2I20
+        CfnOutput(
+            self,
+            'DynamoDBConfiguratorLink',
+            value=
+            f"https://{current_region}.console.aws.amazon.com/dynamodbv2/home?region={current_region}#item-explorer?initialTagKey=&table={configurator_task.configuration_table_name}")
         CfnOutput(
             self,
             'StepFunctionFlowLink',

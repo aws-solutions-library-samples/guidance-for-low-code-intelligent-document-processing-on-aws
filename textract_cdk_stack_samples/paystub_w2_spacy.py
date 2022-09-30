@@ -290,27 +290,33 @@ class PaystubAndW2Spacy(Stack):
         #     typing.cast(rds.ServerlessCluster, csv_to_aurora_task.db_cluster).
         #     _security_groups[0])  #pyright: ignore [reportOptionalMemberAccess]
 
+        # Define the Asynchronous flow with calling TextractAsync first, then converting the paginated JSON to one JSON file
         async_chain = sfn.Chain.start(textract_async_task).next(
             textract_async_to_json)
 
+        # Define the Asynchronous flow with calling TextractAsync first, then converting the paginated JSON to one JSON file when calling Textract again with the document-type specific configuration
         async_chain_with_config = sfn.Chain.start(
             textract_async_task_with_config).next(
                 textract_async_with_config_to_json)
 
+        # just random choice for value 0-100
         random_choice = sfn.Choice(self, 'Choice') \
                            .when(sfn.Condition.number_greater_than('$.Random.randomNumber', 50), async_chain)\
                            .otherwise(textract_sync_task)
 
+        # just random choice for value 0-100
         random_choice2 = sfn.Choice(self, 'Choice2') \
                            .when(sfn.Condition.number_greater_than('$.Random.randomNumber', 50), async_chain_with_config)\
                            .otherwise(textract_sync_task_with_config)
 
+       # route according to document type
         doc_type_choice = sfn.Choice(self, 'RouteDocType') \
                            .when(sfn.Condition.string_equals('$.classification.documentType', 'NONE'), sfn.Pass(self, 'DocumentTypeNotClear'))\
                            .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_OTHER'), sfn.Pass(self, 'SendToOpenSearch'))\
                            .otherwise(configurator_task)
-        #                    .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_ID'), textract_sync_task_id2) \
-
+        #                    .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_ID'), textract_sync_task_id2),
+        
+        # route according to number of queries
         number_queries_choice = sfn.Choice(self, 'NumberQueriesChoice') \
             .when(sfn.Condition.and_(sfn.Condition.is_present('$.numberOfQueries'),
                                     sfn.Condition.number_greater_than('$.numberOfQueries', 15)),
@@ -322,6 +328,7 @@ class PaystubAndW2Spacy(Stack):
                            cause="Too many queries. > 30. See https://docs.aws.amazon.com/textract/latest/dg/limits.html")) \
             .otherwise(task_random_number2)
 
+        # route according to number of pages (this flow only supports 1 page documents)
         number_pages_choice = sfn.Choice(self, 'NumberPagesChoice') \
             .when(sfn.Condition.and_(sfn.Condition.is_present('$.numberOfPages'),
                                      sfn.Condition.number_greater_than('$.numberOfPages', 1)),

@@ -9,7 +9,7 @@ import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_stepfunctions_tasks as tasks
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
-from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
+from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, Aws)
 import amazon_textract_idp_cdk_constructs as tcdk
 
 
@@ -213,43 +213,43 @@ class PaystubAndW2Spacy(Stack):
             payload_response_only=True,
             result_path='$.Random')
 
-        textract_sync_task_id2 = tcdk.TextractGenericSyncSfnTask(
-            self,
-            "TextractSyncID2",
-            s3_output_bucket=document_bucket.bucket_name,
-            s3_output_prefix=s3_output_prefix,
-            textract_api="ANALYZEID",
-            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-            lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
-            input=sfn.TaskInput.from_object({
-                "Token":
-                sfn.JsonPath.task_token,
-                "ExecutionId":
-                sfn.JsonPath.string_at('$$.Execution.Id'),
-                "Payload":
-                sfn.JsonPath.entire_payload,
-            }),
-            result_path="$.textract_result")
+        # textract_sync_task_id2 = tcdk.TextractGenericSyncSfnTask(
+        #     self,
+        #     "TextractSyncID2",
+        #     s3_output_bucket=document_bucket.bucket_name,
+        #     s3_output_prefix=s3_output_prefix,
+        #     textract_api="ANALYZEID",
+        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+        #     lambda_log_level="DEBUG",
+        #     timeout=Duration.hours(24),
+        #     input=sfn.TaskInput.from_object({
+        #         "Token":
+        #         sfn.JsonPath.task_token,
+        #         "ExecutionId":
+        #         sfn.JsonPath.string_at('$$.Execution.Id'),
+        #         "Payload":
+        #         sfn.JsonPath.entire_payload,
+        #     }),
+        #     result_path="$.textract_result")
 
-        textract_sync_task_expense2 = tcdk.TextractGenericSyncSfnTask(
-            self,
-            "TextractSyncExpense2",
-            s3_output_bucket=document_bucket.bucket_name,
-            s3_output_prefix=s3_output_prefix,
-            textract_api="EXPENSE",
-            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-            lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
-            input=sfn.TaskInput.from_object({
-                "Token":
-                sfn.JsonPath.task_token,
-                "ExecutionId":
-                sfn.JsonPath.string_at('$$.Execution.Id'),
-                "Payload":
-                sfn.JsonPath.entire_payload,
-            }),
-            result_path="$.textract_result")
+        # textract_sync_task_expense2 = tcdk.TextractGenericSyncSfnTask(
+        #     self,
+        #     "TextractSyncExpense2",
+        #     s3_output_bucket=document_bucket.bucket_name,
+        #     s3_output_prefix=s3_output_prefix,
+        #     textract_api="EXPENSE",
+        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+        #     lambda_log_level="DEBUG",
+        #     timeout=Duration.hours(24),
+        #     input=sfn.TaskInput.from_object({
+        #         "Token":
+        #         sfn.JsonPath.task_token,
+        #         "ExecutionId":
+        #         sfn.JsonPath.string_at('$$.Execution.Id'),
+        #         "Payload":
+        #         sfn.JsonPath.entire_payload,
+        #     }),
+        #     result_path="$.textract_result")
 
         task_random_number2 = tasks.LambdaInvoke(
             self,
@@ -308,9 +308,8 @@ class PaystubAndW2Spacy(Stack):
         doc_type_choice = sfn.Choice(self, 'RouteDocType') \
                            .when(sfn.Condition.string_equals('$.classification.documentType', 'NONE'), sfn.Pass(self, 'DocumentTypeNotClear'))\
                            .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_OTHER'), sfn.Pass(self, 'SendToOpenSearch'))\
-                           .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_ID'), textract_sync_task_id2) \
-                           .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_EXPENSE'), textract_sync_task_expense2) \
                            .otherwise(configurator_task)
+        #                    .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_ID'), textract_sync_task_id2) \
 
         number_queries_choice = sfn.Choice(self, 'NumberQueriesChoice') \
             .when(sfn.Condition.and_(sfn.Condition.is_present('$.numberOfQueries'),
@@ -372,7 +371,8 @@ class PaystubAndW2Spacy(Stack):
         CfnOutput(
             self,
             "DocumentUploadLocation",
-            value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/")
+            value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/",
+            export_name=f"{Aws.STACK_NAME}-DocumentUploadLocation")
         CfnOutput(self,
                   "SpacyCallLambdaLogGroup",
                   value=spacy_classification_task.spacy_sync_lambda_log_group.
@@ -443,12 +443,13 @@ class PaystubAndW2Spacy(Stack):
             self,
             'DynamoDBConfiguratorLink',
             value=
-            f"https://{current_region}.console.aws.amazon.com/dynamodbv2/home?region={current_region}#item-explorer?initialTagKey=&table={configurator_task.configuration_table_name}")
+            f"https://{current_region}.console.aws.amazon.com/dynamodbv2/home?region={current_region}#item-explorer?initialTagKey=&table={configurator_task.configuration_table_name}",
+            export_name=f"{Aws.STACK_NAME}-DynamoDBConfiguratorLink")
         CfnOutput(
             self,
             'StepFunctionFlowLink',
-            value=
-            f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}"
+            value=f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}",
+            export_name=f"{Aws.STACK_NAME}-StepFunctionFlowLink"
         )
         CfnOutput(self,
                   'ClassifictionConfiguration',

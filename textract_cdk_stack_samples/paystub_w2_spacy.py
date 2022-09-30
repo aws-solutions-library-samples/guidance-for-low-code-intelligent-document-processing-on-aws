@@ -314,7 +314,7 @@ class PaystubAndW2Spacy(Stack):
                            .when(sfn.Condition.string_equals('$.classification.documentType', 'NONE'), sfn.Pass(self, 'DocumentTypeNotClear'))\
                            .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_OTHER'), sfn.Pass(self, 'SendToOpenSearch'))\
                            .otherwise(configurator_task)
-        #                    .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_ID'), textract_sync_task_id2),
+                           # .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_ID'), textract_sync_task_id2) \
         
         # route according to number of queries
         number_queries_choice = sfn.Choice(self, 'NumberQueriesChoice') \

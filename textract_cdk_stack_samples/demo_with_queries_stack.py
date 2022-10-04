@@ -6,7 +6,7 @@ import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_stepfunctions_tasks as tasks
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
-from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
+from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, Aws)
 import amazon_textract_idp_cdk_constructs as tcdk
 
 
@@ -39,6 +39,7 @@ class DemoQueries(Stack):
             "TextractSync",
             s3_output_bucket=document_bucket.bucket_name,
             s3_output_prefix=s3_output_prefix,
+            enable_cloud_watch_metrics_and_dashboard=True,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
             timeout=Duration.hours(24),
@@ -57,6 +58,7 @@ class DemoQueries(Stack):
             "TextractAsync",
             s3_output_bucket=s3_output_bucket,
             s3_temp_output_prefix=s3_temp_output_prefix,
+            enable_cloud_watch_metrics_and_dashboard=True,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
             timeout=Duration.hours(24),
@@ -170,7 +172,8 @@ class DemoQueries(Stack):
         CfnOutput(
             self,
             "DocumentUploadLocation",
-            value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/")
+            value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/",
+            export_name=f"{Aws.STACK_NAME}-DocumentUploadLocation")
         CfnOutput(self,
                   "StateMachineARN",
                   value=textract_sync_task.state_machine.state_machine_arn)
@@ -183,5 +186,5 @@ class DemoQueries(Stack):
             self,
             'StepFunctionFlowLink',
             value=
-            f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}"
-        )
+            f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}",
+            export_name=f"{Aws.STACK_NAME}-StepFunctionFlowLink")

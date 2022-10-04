@@ -1,16 +1,16 @@
 from constructs import Construct
 import os
-import typing
+# import typing
 import aws_cdk.aws_s3 as s3
 import aws_cdk.aws_ecr as ecr
-import aws_cdk.aws_ec2 as ec2
-import aws_cdk.aws_rds as rds
+# import aws_cdk.aws_ec2 as ec2
+# import aws_cdk.aws_rds as rds
 import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_stepfunctions_tasks as tasks
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
-from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
+from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, Aws)
 import amazon_textract_idp_cdk_constructs as tcdk
 import pathlib
 
@@ -32,7 +32,7 @@ class PaystubAndW2Spacy(Stack):
         # VPC
         # vpc = ec2.Vpc.from_lookup(self, 'defaultVPC', is_default=True)
 
-        vpc = ec2.Vpc(self, "Vpc", cidr="10.0.0.0/16")
+        # vpc = ec2.Vpc(self, "Vpc", cidr="10.0.0.0/16")
 
         # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
         document_bucket = s3.Bucket(self,
@@ -40,7 +40,7 @@ class PaystubAndW2Spacy(Stack):
                                     auto_delete_objects=True,
                                     removal_policy=RemovalPolicy.DESTROY)
         s3_output_bucket = document_bucket.bucket_name
-        workflow_name = "SpacyDemoIDP"
+        workflow_name = "PaystubW2"
 
         decider_task = tcdk.TextractPOCDecider(
             self,
@@ -218,22 +218,22 @@ class PaystubAndW2Spacy(Stack):
             }),
             result_path="$.txt_output_location")
 
-        csv_to_aurora_task = tcdk.CSVToAuroraTask(
-            self,
-            "CsvToAurora",
-            vpc=vpc,
-            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-            lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
-            input=sfn.TaskInput.from_object({
-                "Token":
-                sfn.JsonPath.task_token,
-                "ExecutionId":
-                sfn.JsonPath.string_at('$$.Execution.Id'),
-                "Payload":
-                sfn.JsonPath.entire_payload
-            }),
-            result_path="$.textract_result")
+        # csv_to_aurora_task = tcdk.CSVToAuroraTask(
+        #     self,
+        #     "CsvToAurora",
+        #     vpc=vpc,
+        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+        #     lambda_log_level="DEBUG",
+        #     timeout=Duration.hours(24),
+        #     input=sfn.TaskInput.from_object({
+        #         "Token":
+        #         sfn.JsonPath.task_token,
+        #         "ExecutionId":
+        #         sfn.JsonPath.string_at('$$.Execution.Id'),
+        #         "Payload":
+        #         sfn.JsonPath.entire_payload
+        #     }),
+        #     result_path="$.textract_result")
 
         lambda_random_function = lambda_.DockerImageFunction(
             self,
@@ -250,43 +250,43 @@ class PaystubAndW2Spacy(Stack):
             payload_response_only=True,
             result_path='$.Random')
 
-        textract_sync_task_id2 = tcdk.TextractGenericSyncSfnTask(
-            self,
-            "TextractSyncID2",
-            s3_output_bucket=document_bucket.bucket_name,
-            s3_output_prefix=s3_output_prefix,
-            textract_api="ANALYZEID",
-            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-            lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
-            input=sfn.TaskInput.from_object({
-                "Token":
-                sfn.JsonPath.task_token,
-                "ExecutionId":
-                sfn.JsonPath.string_at('$$.Execution.Id'),
-                "Payload":
-                sfn.JsonPath.entire_payload,
-            }),
-            result_path="$.textract_result")
+        # textract_sync_task_id2 = tcdk.TextractGenericSyncSfnTask(
+        #     self,
+        #     "TextractSyncID2",
+        #     s3_output_bucket=document_bucket.bucket_name,
+        #     s3_output_prefix=s3_output_prefix,
+        #     textract_api="ANALYZEID",
+        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+        #     lambda_log_level="DEBUG",
+        #     timeout=Duration.hours(24),
+        #     input=sfn.TaskInput.from_object({
+        #         "Token":
+        #         sfn.JsonPath.task_token,
+        #         "ExecutionId":
+        #         sfn.JsonPath.string_at('$$.Execution.Id'),
+        #         "Payload":
+        #         sfn.JsonPath.entire_payload,
+        #     }),
+        #     result_path="$.textract_result")
 
-        textract_sync_task_expense2 = tcdk.TextractGenericSyncSfnTask(
-            self,
-            "TextractSyncExpense2",
-            s3_output_bucket=document_bucket.bucket_name,
-            s3_output_prefix=s3_output_prefix,
-            textract_api="EXPENSE",
-            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-            lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
-            input=sfn.TaskInput.from_object({
-                "Token":
-                sfn.JsonPath.task_token,
-                "ExecutionId":
-                sfn.JsonPath.string_at('$$.Execution.Id'),
-                "Payload":
-                sfn.JsonPath.entire_payload,
-            }),
-            result_path="$.textract_result")
+        # textract_sync_task_expense2 = tcdk.TextractGenericSyncSfnTask(
+        #     self,
+        #     "TextractSyncExpense2",
+        #     s3_output_bucket=document_bucket.bucket_name,
+        #     s3_output_prefix=s3_output_prefix,
+        #     textract_api="EXPENSE",
+        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+        #     lambda_log_level="DEBUG",
+        #     timeout=Duration.hours(24),
+        #     input=sfn.TaskInput.from_object({
+        #         "Token":
+        #         sfn.JsonPath.task_token,
+        #         "ExecutionId":
+        #         sfn.JsonPath.string_at('$$.Execution.Id'),
+        #         "Payload":
+        #         sfn.JsonPath.entire_payload,
+        #     }),
+        #     result_path="$.textract_result")
 
         task_random_number2 = tasks.LambdaInvoke(
             self,
@@ -328,28 +328,33 @@ class PaystubAndW2Spacy(Stack):
         #     typing.cast(rds.ServerlessCluster, csv_to_aurora_task.db_cluster).
         #     _security_groups[0])  #pyright: ignore [reportOptionalMemberAccess]
 
+        # Define the Asynchronous flow with calling TextractAsync first, then converting the paginated JSON to one JSON file
         async_chain = sfn.Chain.start(textract_async_task).next(
             textract_async_to_json)
 
+        # Define the Asynchronous flow with calling TextractAsync first, then converting the paginated JSON to one JSON file when calling Textract again with the document-type specific configuration
         async_chain_with_config = sfn.Chain.start(
             textract_async_task_with_config).next(
                 textract_async_with_config_to_json)
 
+        # just random choice for value 0-100
         random_choice = sfn.Choice(self, 'Choice') \
                            .when(sfn.Condition.number_greater_than('$.Random.randomNumber', 50), async_chain)\
                            .otherwise(textract_sync_task)
 
+        # just random choice for value 0-100
         random_choice2 = sfn.Choice(self, 'Choice2') \
                            .when(sfn.Condition.number_greater_than('$.Random.randomNumber', 50), async_chain_with_config)\
                            .otherwise(textract_sync_task_with_config)
 
+        # route according to document type
         doc_type_choice = sfn.Choice(self, 'RouteDocType') \
                            .when(sfn.Condition.string_equals('$.classification.documentType', 'NONE'), sfn.Pass(self, 'DocumentTypeNotClear'))\
                            .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_OTHER'), sfn.Pass(self, 'SendToOpenSearch'))\
-                           .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_ID'), textract_sync_task_id2) \
-                           .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_EXPENSE'), textract_sync_task_expense2) \
                            .otherwise(configurator_task)
+        # .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_ID'), textract_sync_task_id2) \
 
+        # route according to number of queries
         number_queries_choice = sfn.Choice(self, 'NumberQueriesChoice') \
             .when(sfn.Condition.and_(sfn.Condition.is_present('$.numberOfQueries'),
                                     sfn.Condition.number_greater_than('$.numberOfQueries', 15)),
@@ -361,6 +366,7 @@ class PaystubAndW2Spacy(Stack):
                            cause="Too many queries. > 30. See https://docs.aws.amazon.com/textract/latest/dg/limits.html")) \
             .otherwise(task_random_number2)
 
+        # route according to number of pages (this flow only supports 1 page documents)
         number_pages_choice = sfn.Choice(self, 'NumberPagesChoice') \
             .when(sfn.Condition.and_(sfn.Condition.is_present('$.numberOfPages'),
                                      sfn.Condition.number_greater_than('$.numberOfPages', 1)),
@@ -376,7 +382,7 @@ class PaystubAndW2Spacy(Stack):
         task_random_number.next(random_choice)
         async_chain_with_config.next(generate_csv)
         textract_sync_task_with_config.next(generate_csv)
-        generate_csv.next(csv_to_aurora_task)
+        # generate_csv.next(csv_to_aurora_task)
 
         workflow_chain = sfn.Chain \
             .start(decider_task) \
@@ -409,7 +415,8 @@ class PaystubAndW2Spacy(Stack):
         CfnOutput(
             self,
             "DocumentUploadLocation",
-            value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/")
+            value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/",
+            export_name=f"{Aws.STACK_NAME}-DocumentUploadLocation")
         CfnOutput(self,
                   "SpacyCallLambdaLogGroup",
                   value=spacy_classification_task.spacy_sync_lambda_log_group.
@@ -424,14 +431,14 @@ class PaystubAndW2Spacy(Stack):
                   textract_sync_lambda_log_group.log_group_name)
         # CfnOutput(self,
         #           "DashboardLink",
-        #           valu e=textract_sync_task.dashboard_name)
+        #           value=textract_sync_task.dashboard_name)
         CfnOutput(self,
                   "StateMachineARN",
                   value=textract_sync_task.state_machine.state_machine_arn)
-        CfnOutput(self,
-                  "CSVtoAuroraLambdaLogGroup",
-                  value=csv_to_aurora_task.csv_to_aurora_lambda_log_group.
-                  log_group_name)
+        # CfnOutput(self,
+        #           "CSVtoAuroraLambdaLogGroup",
+        #           value=csv_to_aurora_task.csv_to_aurora_lambda_log_group.
+        #           log_group_name)
         CfnOutput(self,
                   "GenerateCSVLambdaLogGroup",
                   value=generate_text.generate_csv_log_group.log_group_name)
@@ -448,39 +455,46 @@ class PaystubAndW2Spacy(Stack):
         CfnOutput(self,
                   "ConfiguratorFunctionLogGroup",
                   value=configurator_task.configurator_function_log_group_name)
-        CfnOutput(self,
-                  "DBClusterARN",
-                  value=csv_to_aurora_task.db_cluster.cluster_arn)
-        CfnOutput(self,
-                  "DBClusterSecretARN",
-                  value=typing.cast(rds.ServerlessCluster,
-                                    csv_to_aurora_task.db_cluster).secret.
-                  secret_arn)  #pyright: ignore [reportOptionalMemberAccess]
-        CfnOutput(self,
-                  "DBClusterEndpoint",
-                  value=typing.cast(
-                      rds.ServerlessCluster,
-                      csv_to_aurora_task.db_cluster).cluster_endpoint.hostname
-                  )  #pyright: ignore [reportOptionalMemberAccess]
-        CfnOutput(
-            self,
-            "DBClusterSecurityGroup",
-            value=typing.cast(
-                rds.ServerlessCluster,
-                csv_to_aurora_task.db_cluster)._security_groups[0].
-            security_group_id)  #pyright: ignore [reportOptionalMemberAccess]
+        # CfnOutput(self,
+        #           "DBClusterARN",
+        #           value=csv_to_aurora_task.db_cluster.cluster_arn)
+        # CfnOutput(self,
+        #           "DBClusterSecretARN",
+        #           value=typing.cast(rds.ServerlessCluster,
+        #                             csv_to_aurora_task.db_cluster).secret.
+        #           secret_arn)  #pyright: ignore [reportOptionalMemberAccess]
+        # CfnOutput(self,
+        #           "DBClusterEndpoint",
+        #           value=typing.cast(
+        #               rds.ServerlessCluster,
+        #               csv_to_aurora_task.db_cluster).cluster_endpoint.hostname
+        #           )  #pyright: ignore [reportOptionalMemberAccess]
+        # CfnOutput(
+        #     self,
+        #     "DBClusterSecurityGroup",
+        #     value=typing.cast(
+        #         rds.ServerlessCluster,
+        #         csv_to_aurora_task.db_cluster)._security_groups[0].
+        #     security_group_id)  #pyright: ignore [reportOptionalMemberAccess]
 
         # CfnOutput(self,
         #           "EC2_DB_BASTION_PUBLIC_DNS",
         #           value=ec2_db_bastion.instance_public_dns_name
         #           )  #pyright: ignore [reportOptionalMemberAccess]
         current_region = Stack.of(self).region
+        # https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#item-explorer?initialTagKey=&table=PaystubAndW2Spacy-SpacyDemoIDPConfiguratorTextractConfigurationTableFD1584D3-1GZTFKZXC2I20
+        CfnOutput(
+            self,
+            'DynamoDBConfiguratorLink',
+            value=
+            f"https://{current_region}.console.aws.amazon.com/dynamodbv2/home?region={current_region}#item-explorer?initialTagKey=&table={configurator_task.configuration_table_name}",
+            export_name=f"{Aws.STACK_NAME}-DynamoDBConfiguratorLink")
         CfnOutput(
             self,
             'StepFunctionFlowLink',
             value=
-            f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}"
-        )
+            f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}",
+            export_name=f"{Aws.STACK_NAME}-StepFunctionFlowLink")
         CfnOutput(self,
                   'ClassifictionConfiguration',
                   value=configurator_task.configuration_table_name)

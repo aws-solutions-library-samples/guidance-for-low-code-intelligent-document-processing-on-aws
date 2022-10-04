@@ -1,7 +1,7 @@
 from constructs import Construct
 import os
 import aws_cdk.aws_s3 as s3
-import aws_cdk.aws_rds as rds
+# import aws_cdk.aws_rds as rds
 import aws_cdk.aws_ec2 as ec2
 import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
@@ -9,7 +9,7 @@ import aws_cdk.aws_stepfunctions_tasks as tasks
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
 import typing
-from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration )
+from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, Aws )
 import amazon_textract_idp_cdk_constructs as tcdk
 
 
@@ -139,24 +139,24 @@ class DocumentSplitterWorkflow(Stack):
         rds_aurora_serverless = tcdk.RDSAuroraServerless(self, "RDSAuroraServerless",
                                  vpc=vpc)
 
-        csv_to_aurora_task = tcdk.CSVToAuroraTask(
-            self,
-            "CsvToAurora",
-            db_cluster=rds_aurora_serverless.db_cluster,
-            aurora_security_group=rds_aurora_serverless.aurora_security_group,
-            lambda_security_group=rds_aurora_serverless.lambda_security_group,
-            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-            lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
-            input=sfn.TaskInput.from_object({
-                "Token":
-                sfn.JsonPath.task_token,
-                "ExecutionId":
-                sfn.JsonPath.string_at('$$.Execution.Id'),
-                "Payload":
-                sfn.JsonPath.entire_payload
-            }),
-            result_path="$.textract_result")
+        # csv_to_aurora_task = tcdk.CSVToAuroraTask(
+        #     self,
+        #     "CsvToAurora",
+        #     db_cluster=rds_aurora_serverless.db_cluster,
+        #     aurora_security_group=rds_aurora_serverless.aurora_security_group,
+        #     lambda_security_group=rds_aurora_serverless.lambda_security_group,
+        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+        #     lambda_log_level="DEBUG",
+        #     timeout=Duration.hours(24),
+        #     input=sfn.TaskInput.from_object({
+        #         "Token":
+        #         sfn.JsonPath.task_token,
+        #         "ExecutionId":
+        #         sfn.JsonPath.string_at('$$.Execution.Id'),
+        #         "Payload":
+        #         sfn.JsonPath.entire_payload
+        #     }),
+        #     result_path="$.textract_result")
 
         lambda_generate_classification_mapping:lambda_.IFunction = lambda_.DockerImageFunction(
             self,
@@ -222,8 +222,8 @@ class DocumentSplitterWorkflow(Stack):
 
         configurator_task.next(textract_queries_sync_task) \
             .next(generate_csv) \
-            .next(csv_to_aurora_task) \
             .next(task_generate_classification_mapping)
+            # .next(csv_to_aurora_task) \
 
         map.iterator(textract_sync_task)
 
@@ -262,7 +262,8 @@ class DocumentSplitterWorkflow(Stack):
         CfnOutput(
             self,
             "DocumentUploadLocation",
-            value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/")
+            value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/",
+            export_name=f"{Aws.STACK_NAME}-DocumentUploadLocation")
         CfnOutput(
             self,
             "StartStepFunctionLambdaLogGroup",
@@ -272,17 +273,18 @@ class DocumentSplitterWorkflow(Stack):
             self,
             'StepFunctionFlowLink',
             value=
-            f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}"
+            f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}",
+            export_name=f"{Aws.STACK_NAME}-StepFunctionFlowLink"
         )
         # CfnOutput(self,
         #           "EC2_DB_BASTION_PUBLIC_DNS",
         #           value=ec2_db_bastion.instance_public_dns_name
         #           )  #pyright: ignore [reportOptionalMemberAccess]
-        CfnOutput(self,
-                  "DBClusterARN",
-                  value=csv_to_aurora_task.db_cluster.cluster_arn)
-        CfnOutput(self,
-                  "DBClusterSecretARN",
-                  value=typing.cast(rds.ServerlessCluster,
-                                    csv_to_aurora_task.db_cluster).secret.
-                  secret_arn)  #pyright: ignore [reportOptionalMemberAccess]
+        # CfnOutput(self,
+        #           "DBClusterARN",
+        #           value=csv_to_aurora_task.db_cluster.cluster_arn)
+        # CfnOutput(self,
+        #           "DBClusterSecretARN",
+        #           value=typing.cast(rds.ServerlessCluster,
+        #                             csv_to_aurora_task.db_cluster).secret.
+        #           secret_arn)  #pyright: ignore [reportOptionalMemberAccess]

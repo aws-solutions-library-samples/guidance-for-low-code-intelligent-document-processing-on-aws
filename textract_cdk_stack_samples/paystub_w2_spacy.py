@@ -2,6 +2,7 @@ from constructs import Construct
 import os
 import typing
 import aws_cdk.aws_s3 as s3
+import aws_cdk.aws_ecr as ecr
 import aws_cdk.aws_ec2 as ec2
 import aws_cdk.aws_rds as rds
 import aws_cdk.aws_s3_notifications as s3n
@@ -11,6 +12,7 @@ import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
 from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
 import amazon_textract_idp_cdk_constructs as tcdk
+import pathlib
 
 
 class PaystubAndW2Spacy(Stack):
@@ -24,6 +26,8 @@ class PaystubAndW2Spacy(Stack):
         s3_temp_output_prefix = "textract-temp-output"
         s3_csv_output_prefix = "csv_output"
         s3_txt_output_prefix = "txt_output"
+
+        current_path = pathlib.Path(__file__).parent.resolve()
 
         # VPC
         # vpc = ec2.Vpc.from_lookup(self, 'defaultVPC', is_default=True)
@@ -84,10 +88,52 @@ class PaystubAndW2Spacy(Stack):
             }),
             result_path="$.textract_result")
 
+        # spacy_classification_task = tcdk.SpacySfnTask(
+        #     self,
+        #     "Classification",
+        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+        #     lambda_log_level="DEBUG",
+        #     timeout=Duration.hours(24),
+        #     input=sfn.TaskInput.from_object({
+        #         "Token":
+        #         sfn.JsonPath.task_token,
+        #         "ExecutionId":
+        #         sfn.JsonPath.string_at('$$.Execution.Id'),
+        #         "Payload":
+        #         sfn.JsonPath.entire_payload,
+        #     }),
+        #     result_path="$.classification")
+
+        # spacyImageEcrRepository = "somerepo"
+        # repo = ecr.Repository(self,
+        #                       "SpacyPaystubW2IdRepo",
+        #                       repository_name=spacyImageEcrRepository)
+
+        # spacy_function = lambda_.DockerImageFunction(
+        #     self,
+        #     "SpacyFunction",
+        #     code=lambda_.DockerImageCode.from_ecr(repo),
+        #     memory_size=4096,
+        #     architecture=lambda_.Architecture.X86_64,
+        #     timeout=Duration.seconds(900),
+        #     environment={"LOG_LEVEL": "DEBUG"})
+
+        classification_custom_docker: lambda_.IFunction = lambda_.DockerImageFunction(
+            self,
+            "ClassificationCustomDocker",
+            code=lambda_.DockerImageCode.from_image_asset(
+                os.path.join(current_path,
+                             '../lambda/classification_docker/')),
+            memory_size=10240,
+            architecture=lambda_.Architecture.X86_64,
+            timeout=Duration.seconds(900),
+            environment={"LOG_LEVEL": "DEBUG"})
+
         spacy_classification_task = tcdk.SpacySfnTask(
             self,
             "Classification",
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+            docker_image_function=classification_custom_docker,
             lambda_log_level="DEBUG",
             timeout=Duration.hours(24),
             input=sfn.TaskInput.from_object({
@@ -205,8 +251,7 @@ class PaystubAndW2Spacy(Stack):
             "RandomIntFunction",
             code=lambda_.DockerImageCode.from_image_asset(
                 os.path.join(script_location, '../lambda/random_number')),
-            memory_size=128,
-            architecture=lambda_.Architecture.X86_64)
+            memory_size=128)
 
         task_random_number = tasks.LambdaInvoke(
             self,
@@ -262,36 +307,37 @@ class PaystubAndW2Spacy(Stack):
             payload_response_only=True,
             result_path='$.Random')
 
-        sg = ec2.SecurityGroup(self, 'SSH', vpc=vpc, allow_all_outbound=True)
-        sg.add_ingress_rule(ec2.Peer.prefix_list('pl-4e2ece27'),
-                            ec2.Port.tcp(22))
+        # EC2 to access the DB
+        # sg = ec2.SecurityGroup(self, 'SSH', vpc=vpc, allow_all_outbound=True)
+        # sg.add_ingress_rule(ec2.Peer.prefix_list('somelist'),
+        #                     ec2.Port.tcp(22))
 
-        instance_role = iam.Role(
-            self,
-            'RdsDataRole',
-            assumed_by=iam.ServicePrincipal('ec2.amazonaws.com'),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    'AmazonRDSDataFullAccess')
-            ])
+        # instance_role = iam.Role(
+        #     self,
+        #     'RdsDataRole',
+        #     assumed_by=iam.ServicePrincipal('ec2.amazonaws.com'),
+        #     managed_policies=[
+        #         iam.ManagedPolicy.from_aws_managed_policy_name(
+        #             'AmazonRDSDataFullAccess')
+        #     ])
 
-        mine = ec2.MachineImage.generic_linux(
-            {'us-east-1': "ami-08c1cbdc7bae8c84b"})
-        ec2_db_bastion = ec2.Instance(
-            self,
-            'DbBastion',
-            instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3,
-                                              ec2.InstanceSize.XLARGE),
-            machine_image=mine,
-            security_group=sg,
-            key_name='internal-us-east-1',
-            role=instance_role,  #type: ignore
-            vpc=vpc,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC))
+        # mine = ec2.MachineImage.generic_linux(
+        #     {'us-east-1': "someAMI"})
+        # ec2_db_bastion = ec2.Instance(
+        #     self,
+        #     'DbBastion',
+        #     instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3,
+        #                                       ec2.InstanceSize.XLARGE),
+        #     machine_image=mine,
+        #     security_group=sg,
+        #     key_name='somekey',
+        #     role=instance_role,  #type: ignore
+        #     vpc=vpc,
+        #     vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC))
 
-        ec2_db_bastion.add_security_group(
-            typing.cast(rds.ServerlessCluster, csv_to_aurora_task.db_cluster).
-            _security_groups[0])  #pyright: ignore [reportOptionalMemberAccess]
+        # ec2_db_bastion.add_security_group(
+        #     typing.cast(rds.ServerlessCluster, csv_to_aurora_task.db_cluster).
+        #     _security_groups[0])  #pyright: ignore [reportOptionalMemberAccess]
 
         async_chain = sfn.Chain.start(textract_async_task).next(
             textract_async_to_json)
@@ -358,7 +404,6 @@ class PaystubAndW2Spacy(Stack):
             code=lambda_.DockerImageCode.from_image_asset(
                 os.path.join(script_location, '../lambda/startstepfunction')),
             memory_size=128,
-            architecture=lambda_.Architecture.X86_64,
             environment={"STATE_MACHINE_ARN": state_machine.state_machine_arn})
 
         lambda_step_start_step_function.add_to_role_policy(

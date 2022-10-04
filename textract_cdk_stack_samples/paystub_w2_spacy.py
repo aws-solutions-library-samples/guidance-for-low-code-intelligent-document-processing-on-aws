@@ -88,6 +88,7 @@ class PaystubAndW2Spacy(Stack):
             }),
             result_path="$.textract_result")
 
+        # The initial classification model with AWS_PAYSTUBS and AWS_W2
         # spacy_classification_task = tcdk.SpacySfnTask(
         #     self,
         #     "Classification",
@@ -104,20 +105,8 @@ class PaystubAndW2Spacy(Stack):
         #     }),
         #     result_path="$.classification")
 
-        # spacyImageEcrRepository = "somerepo"
-        # repo = ecr.Repository(self,
-        #                       "SpacyPaystubW2IdRepo",
-        #                       repository_name=spacyImageEcrRepository)
-
-        # spacy_function = lambda_.DockerImageFunction(
-        #     self,
-        #     "SpacyFunction",
-        #     code=lambda_.DockerImageCode.from_ecr(repo),
-        #     memory_size=4096,
-        #     architecture=lambda_.Architecture.X86_64,
-        #     timeout=Duration.seconds(900),
-        #     environment={"LOG_LEVEL": "DEBUG"})
-
+        # Reference to a classification model with AWS_PAYSTUBS, AWS_W2, AWS_ID
+        # Example how to use a public container in Lambda (just wrap it in a Dockefile)
         classification_custom_docker: lambda_.IFunction = lambda_.DockerImageFunction(
             self,
             "ClassificationCustomDocker",

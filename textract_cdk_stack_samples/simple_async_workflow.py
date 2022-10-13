@@ -20,10 +20,12 @@ class SimpleAsyncWorkflow(Stack):
         s3_temp_output_prefix = "textract-temp-output"
 
         # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
-        document_bucket = s3.Bucket(self,
-                                    "TextractSimpleAsyncWorkflow",
-                                    auto_delete_objects=True,
-                                    removal_policy=RemovalPolicy.DESTROY)
+        document_bucket = s3.Bucket(
+            self,
+            "TextractSimpleAsyncWorkflow",
+            auto_delete_objects=True,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy=RemovalPolicy.DESTROY)
         s3_output_bucket = document_bucket.bucket_name
         workflow_name = "SimpleAsyncWorkflow"
 

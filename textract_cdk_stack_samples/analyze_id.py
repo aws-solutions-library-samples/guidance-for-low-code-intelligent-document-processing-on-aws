@@ -19,10 +19,12 @@ class AnalyzeIDStack(Stack):
         s3_output_prefix = "textract-output"
 
         # BEWARE! This is a demo/POC setup, remote the auto_delete_objects=True and
-        document_bucket = s3.Bucket(self,
-                                    "SchademCdkIdpStackPaystubW2",
-                                    auto_delete_objects=True,
-                                    removal_policy=RemovalPolicy.DESTROY)
+        document_bucket = s3.Bucket(
+            self,
+            "AnalyzeIDBucket",
+            auto_delete_objects=True,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy=RemovalPolicy.DESTROY)
         # ID
         decider_task_id = tcdk.TextractPOCDecider(
             self,

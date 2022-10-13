@@ -353,7 +353,9 @@ class PaystubAndW2Spacy(Stack):
         doc_type_choice = sfn.Choice(self, 'RouteDocType') \
                            .when(sfn.Condition.string_equals('$.classification.documentType', 'NONE'), sfn.Pass(self, 'DocumentTypeNotClear'))\
                            .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_OTHER'), sfn.Pass(self, 'SendToOpenSearch'))\
-                           .otherwise(configurator_task)
+                           .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_PAYSTUBS'), configurator_task)\
+                           .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_W2'), configurator_task)\
+                           .otherwise(sfn.Fail(self, "DocumentTypeNotImplemented"))
         # .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_ID'), textract_sync_task_id2) \
 
         # route according to number of queries

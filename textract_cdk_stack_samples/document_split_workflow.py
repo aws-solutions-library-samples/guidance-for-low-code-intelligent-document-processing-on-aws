@@ -178,6 +178,20 @@ class DocumentSplitterWorkflow(Stack):
             lambda_function=lambda_generate_classification_mapping,
             output_path='$.Payload')
 
+        analyze_id_generate_csv: lambda_.IFunction = lambda_.DockerImageFunction(
+            self,
+            "LambdaAnalzyeIDGenerateCSV",
+            code=lambda_.DockerImageCode.from_image_asset(
+                os.path.join(script_location,
+                             '../lambda/analyze_id_generatecsv/')),
+            memory_size=1024,
+            architecture=lambda_.Architecture.X86_64,
+            environment={})
+        task_analyze_id_generate_csv = tasks.LambdaInvoke(
+            self,
+            "TaskAnalzyeIDGenerateCSV",
+            lambda_function=analyze_id_generate_csv,
+            output_path='$.Payload')
         # EC2 to access the DB
         # sg = ec2.SecurityGroup(self, 'SSH', vpc=vpc, allow_all_outbound=True)
         # sg.add_ingress_rule(ec2.Peer.prefix_list('<some-prefix>'),

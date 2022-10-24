@@ -11,6 +11,7 @@ import aws_cdk.aws_iam as iam
 import typing
 from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, Aws)
 import amazon_textract_idp_cdk_constructs as tcdk
+import pathlib
 
 
 class DocumentSplitterWorkflow(Stack):
@@ -18,6 +19,8 @@ class DocumentSplitterWorkflow(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        current_path = pathlib.Path(__file__).parent.resolve()
+        
         script_location = os.path.dirname(__file__)
         s3_upload_prefix = "uploads"
         s3_output_prefix = "textract-output"
@@ -81,10 +84,22 @@ class DocumentSplitterWorkflow(Stack):
             }),
             result_path="$.txt_output_location")
 
+        classification_custom_docker: lambda_.IFunction = lambda_.DockerImageFunction(
+            self,
+            "ClassificationCustomDocker",
+            code=lambda_.DockerImageCode.from_image_asset(
+                os.path.join(current_path,
+                             '../lambda/classification_docker/')),
+            memory_size=10240,
+            architecture=lambda_.Architecture.X86_64,
+            timeout=Duration.seconds(900),
+            environment={"LOG_LEVEL": "DEBUG"})
+
         spacy_classification_task = tcdk.SpacySfnTask(
             self,
             "Classification",
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+            docker_image_function=classification_custom_docker,
             lambda_log_level="DEBUG",
             timeout=Duration.hours(24),
             input=sfn.TaskInput.from_object({
@@ -96,6 +111,25 @@ class DocumentSplitterWorkflow(Stack):
                 sfn.JsonPath.entire_payload,
             }),
             result_path="$.classification")
+
+      # textract_sync_task_id2 = tcdk.TextractGenericSyncSfnTask(
+        #     self,
+        #     "TextractSyncID2",
+        #     s3_output_bucket=document_bucket.bucket_name,
+        #     s3_output_prefix=s3_output_prefix,
+        #     textract_api="ANALYZEID",
+        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+        #     lambda_log_level="DEBUG",
+        #     timeout=Duration.hours(24),
+        #     input=sfn.TaskInput.from_object({
+        #         "Token":
+        #         sfn.JsonPath.task_token,
+        #         "ExecutionId":
+        #         sfn.JsonPath.string_at('$$.Execution.Id'),
+        #         "Payload":
+        #         sfn.JsonPath.entire_payload,
+        #     }),
+        #     result_path="$.textract_result")
 
         configurator_task = tcdk.TextractClassificationConfigurator(
             self,
@@ -225,9 +259,12 @@ class DocumentSplitterWorkflow(Stack):
         #     _security_groups[0])  #pyright: ignore [reportOptionalMemberAccess]
 
         doc_type_choice = sfn.Choice(self, 'RouteDocType') \
-                    .when(sfn.Condition.string_equals('$.classification.documentType', 'NONE'), task_generate_classification_mapping) \
-                    .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_OTHER'), task_generate_classification_mapping)\
-                    .otherwise(configurator_task)
+                       .when(sfn.Condition.string_equals('$.classification.documentType', 'NONE'), task_generate_classification_mapping)\
+                       .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_OTHER'), task_generate_classification_mapping)\
+                       .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_PAYSTUBS'), configurator_task)\
+                       .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_W2'), configurator_task)\
+                       .otherwise(sfn.Fail(self, "DocumentTypeNotImplemented"))
+                       # .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_ID'), textract_sync_task_id2) \
 
         map = sfn.Map(
             self,

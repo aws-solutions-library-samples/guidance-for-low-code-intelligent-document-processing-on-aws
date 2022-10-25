@@ -112,24 +112,24 @@ class DocumentSplitterWorkflow(Stack):
             }),
             result_path="$.classification")
 
-      # textract_sync_task_id2 = tcdk.TextractGenericSyncSfnTask(
-        #     self,
-        #     "TextractSyncID2",
-        #     s3_output_bucket=document_bucket.bucket_name,
-        #     s3_output_prefix=s3_output_prefix,
-        #     textract_api="ANALYZEID",
-        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-        #     lambda_log_level="DEBUG",
-        #     timeout=Duration.hours(24),
-        #     input=sfn.TaskInput.from_object({
-        #         "Token":
-        #         sfn.JsonPath.task_token,
-        #         "ExecutionId":
-        #         sfn.JsonPath.string_at('$$.Execution.Id'),
-        #         "Payload":
-        #         sfn.JsonPath.entire_payload,
-        #     }),
-        #     result_path="$.textract_result")
+        textract_sync_task_id2 = tcdk.TextractGenericSyncSfnTask(
+            self,
+            "TextractSyncID2",
+            s3_output_bucket=document_bucket.bucket_name,
+            s3_output_prefix=s3_output_prefix,
+            textract_api="ANALYZEID",
+            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+            lambda_log_level="DEBUG",
+            timeout=Duration.hours(24),
+            input=sfn.TaskInput.from_object({
+                "Token":
+                sfn.JsonPath.task_token,
+                "ExecutionId":
+                sfn.JsonPath.string_at('$$.Execution.Id'),
+                "Payload":
+                sfn.JsonPath.entire_payload,
+            }),
+            result_path="$.textract_result")
 
         configurator_task = tcdk.TextractClassificationConfigurator(
             self,
@@ -220,7 +220,17 @@ class DocumentSplitterWorkflow(Stack):
                              '../lambda/analyze_id_generatecsv/')),
             memory_size=1024,
             architecture=lambda_.Architecture.X86_64,
-            environment={})
+            environment={
+                "CSV_S3_OUTPUT_BUCKET": document_bucket.bucket_name,
+                "CSV_S3_OUTPUT_PREFIX": s3_csv_output_prefix
+            })
+        analyze_id_generate_csv.add_to_role_policy(
+            iam.PolicyStatement(actions=['s3:GetObject', 's3:ListObject'],
+                                resources=[f"arn:aws:s3:::{s3_output_bucket}/*", 
+                                f"arn:aws:s3:::{s3_output_bucket}/"]))
+        analyze_id_generate_csv.add_to_role_policy(
+            iam.PolicyStatement(actions=['s3:PutObject'],
+                                resources=[f"arn:aws:s3:::{s3_output_bucket}/{s3_csv_output_prefix}/*"]))
         task_analyze_id_generate_csv = tasks.LambdaInvoke(
             self,
             "TaskAnalzyeIDGenerateCSV",
@@ -263,8 +273,8 @@ class DocumentSplitterWorkflow(Stack):
                        .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_OTHER'), task_generate_classification_mapping)\
                        .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_PAYSTUBS'), configurator_task)\
                        .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_W2'), configurator_task)\
+                       .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_ID'), textract_sync_task_id2) \
                        .otherwise(sfn.Fail(self, "DocumentTypeNotImplemented"))
-                       # .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_ID'), textract_sync_task_id2) \
 
         map = sfn.Map(
             self,
@@ -285,6 +295,9 @@ class DocumentSplitterWorkflow(Stack):
         textract_sync_task.next(generate_text) \
             .next(spacy_classification_task) \
             .next(doc_type_choice)
+            
+        textract_sync_task_id2.next(task_analyze_id_generate_csv) \
+            .next(task_generate_classification_mapping)
 
         configurator_task.next(textract_queries_sync_task) \
             .next(generate_csv) \

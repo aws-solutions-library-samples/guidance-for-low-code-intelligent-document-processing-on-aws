@@ -45,27 +45,21 @@ def lambda_handler(event, _):
     logger.debug(f"version: {version}")
     logger.debug(json.dumps(event))
     csv_s3_output_prefix = os.environ.get('CSV_S3_OUTPUT_PREFIX')
-    output_type = os.environ.get('OUTPUT_TYPE', 'CSV')
     csv_s3_output_bucket = os.environ.get('CSV_S3_OUTPUT_BUCKET')
 
     logger.info(f"CSV_S3_OUTPUT_PREFIX: {csv_s3_output_prefix} \n\
-        CSV_S3_OUTPUT_BUCKET: {csv_s3_output_bucket} \n\
-            OUTPUT_TYPE: {output_type}")
+        CSV_S3_OUTPUT_BUCKET: {csv_s3_output_bucket} \n\ ")
     if not csv_s3_output_prefix or not csv_s3_output_bucket:
         raise ValueError(
             f"require CSV_S3_OUTPUT_PREFIX and CSV_S3_OUTPUT_BUCKET")
-    if not 'Payload' in event and 'textract_result' in event[
-            'Payload'] and not 'TextractOutputJsonPath' in event['Payload'][
-                'textract_result']:
+    if not 'textract_result' in event and not 'TextractOutputJsonPath' in event['textract_result']:
         raise ValueError(
             f"no 'TextractOutputJsonPath' in event['textract_result]")
     # FIXME: hard coded result location
-    s3_path = event['Payload']['textract_result']['TextractOutputJsonPath']
+    s3_path = event['textract_result']['TextractOutputJsonPath']
     classification = ""
-    if 'classification' in event['Payload'] and event['Payload'][
-            'classification'] and 'documentType' in event['Payload'][
-                'classification']:
-        classification = event['Payload']['classification']['documentType']
+    if 'classification' in event and event['classification'] and 'documentType' in event[ 'classification']:
+        classification = event['classification']['documentType']
 
     base_filename = os.path.basename(s3_path)
     base_filename_no_suffix, _ = os.path.splitext(base_filename)
@@ -86,3 +80,9 @@ def lambda_handler(event, _):
     logger.debug(
         f"TextractOutputCSVPath: s3://{csv_s3_output_bucket}/{csv_s3_output_key}"
     )
+
+    return_value = event
+    return_value["csv_output_location"]={"TextractOutputCSVPath": f"s3://{csv_s3_output_bucket}/{csv_s3_output_key}"}
+    
+    return return_value
+    

@@ -90,7 +90,7 @@ class DocumentSplitterWorkflow(Stack):
             }),
             result_path="$.txt_output_location")
 
-        # Classification wrapper around public Docker container
+        # Classification wrapper around public Docker container for classification
         classification_custom_docker: lambda_.IFunction = lambda_.DockerImageFunction(
             self,
             "ClassificationCustomDocker",

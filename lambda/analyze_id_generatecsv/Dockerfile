@@ -1,6 +1,6 @@
 FROM public.ecr.aws/lambda/python:3.9-x86_64
 RUN /var/lang/bin/python -m pip install --upgrade pip
-RUN python -m pip install schadem-tidp-manifest==0.0.8 marshmallow amazon-textract-response-parser amazon-textract-prettyprinter==0.0.16 --target "${LAMBDA_TASK_ROOT}"
+RUN python -m pip install marshmallow amazon-textract-response-parser  --target "${LAMBDA_TASK_ROOT}"
 
 # Copy function code
 COPY app/ ${LAMBDA_TASK_ROOT}/

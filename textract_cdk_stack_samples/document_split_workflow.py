@@ -120,27 +120,6 @@ class DocumentSplitterWorkflow(Stack):
             }),
             result_path="$.classification")
 
-        #### ANALYZE ID GENERATE CSV ##################
-        # textract_sync_task_id2 = tcdk.TextractGenericSyncSfnTask(
-        #     self,
-        #     "TextractSyncID2",
-        #     s3_output_bucket=document_bucket.bucket_name,
-        #     s3_output_prefix=s3_output_prefix,
-        #     textract_api="ANALYZEID",
-        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-        #     lambda_log_level="DEBUG",
-        #     timeout=Duration.hours(24),
-        #     input=sfn.TaskInput.from_object({
-        #         "Token":
-        #         sfn.JsonPath.task_token,
-        #         "ExecutionId":
-        #         sfn.JsonPath.string_at('$$.Execution.Id'),
-        #         "Payload":
-        #         sfn.JsonPath.entire_payload,
-        #     }),
-        #     result_path="$.textract_result")
-        #### ANALYZE ID GENERATE CSV ##################
-
         # Step Functions task to configure Textract call based on classification result
         configurator_task = tcdk.TextractClassificationConfigurator(
             self,
@@ -200,6 +179,27 @@ class DocumentSplitterWorkflow(Stack):
             "TaskGenerateClassificationMapping",
             lambda_function=lambda_generate_classification_mapping,
             output_path='$.Payload')
+
+        #### ANALYZE ID Task ##################
+        # textract_sync_task_id2 = tcdk.TextractGenericSyncSfnTask(
+        #     self,
+        #     "TextractSyncID2",
+        #     s3_output_bucket=document_bucket.bucket_name,
+        #     s3_output_prefix=s3_output_prefix,
+        #     textract_api="ANALYZEID",
+        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+        #     lambda_log_level="DEBUG",
+        #     timeout=Duration.hours(24),
+        #     input=sfn.TaskInput.from_object({
+        #         "Token":
+        #         sfn.JsonPath.task_token,
+        #         "ExecutionId":
+        #         sfn.JsonPath.string_at('$$.Execution.Id'),
+        #         "Payload":
+        #         sfn.JsonPath.entire_payload,
+        #     }),
+        #     result_path="$.textract_result")
+        #### ANALYZE ID Task ##################
 
         #### ANALYZE ID GENERATE CSV ##################
         # analyze_id_generate_csv: lambda_.IFunction = lambda_.DockerImageFunction(

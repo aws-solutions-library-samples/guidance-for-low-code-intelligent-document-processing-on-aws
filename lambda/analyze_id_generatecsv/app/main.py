@@ -36,8 +36,7 @@ def get_file_from_s3(s3_path: str, range=None) -> bytes:
 
 
 def lambda_handler(event, _):
-    # takes and even which includes a location to a Textract JSON schema file and generates CSV based on Query results + FORMS results
-    # in the form of
+    # takes textract_result.TextractOutputJsonPath and generates CSV 
     # filename, page, datetime, key, value
 
     log_level = os.environ.get('LOG_LEVEL', 'INFO')

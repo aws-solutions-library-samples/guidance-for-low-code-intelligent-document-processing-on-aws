@@ -50,17 +50,17 @@ def lambda_handler(event, _):
         if s3_bucket and s3_key:
             manifest: tm.IDPManifest = tm.IDPManifest()
             queries_config = [
-                # tm.Query(text="What is the address?", alias="ADDRESS"),
-                # tm.Query(text="What is the name?", alias="NAME")
-                tm.Query(text="What is the Pay Date?", alias="PAYSTUB_PERIOD_PAY_DATE"),
-                tm.Query(text="What is the Pay Period Start Date?", alias="PAYSTUB_PERIOD_START_DATE"),
-                tm.Query(text="What is the Pay Period End Date?", alias="PAYSTUB_PERIOD_END_DATE"),
-                tm.Query(text="What is the Employee Name?", alias="PAYSTUB_PERIOD_EMPLOYEE_NAME"),
-                tm.Query(text="What is the company Name?", alias="PAYSTUB_PERIOD_COMPANY_NAME"),
-                tm.Query(text="What is the Current Gross Pay?", alias="PAYSTUB_PERIOD_CURRENT_GROSS_PAY"),
-                tm.Query(text="What is the YTD Gross Pay?", alias="PAYSTUB_PERIOD_YTD_GROSS_PAY"),
-                tm.Query(text="What is the regular hourly rate?", alias="PAYSTUB_PERIOD_REGULAR_HOURLY_RATE"),
-                tm.Query(text="What is the holiday rate?", alias="PAYSTUB_PERIOD_HOLIDAY_RATE")
+                tm.Query(text="What is the address?", alias="ADDRESS"),
+                tm.Query(text="What is the name?", alias="NAME")
+                # tm.Query(text="What is the Pay Date?", alias="PAYSTUB_PERIOD_PAY_DATE"),
+                # tm.Query(text="What is the Pay Period Start Date?", alias="PAYSTUB_PERIOD_START_DATE"),
+                # tm.Query(text="What is the Pay Period End Date?", alias="PAYSTUB_PERIOD_END_DATE"),
+                # tm.Query(text="What is the Employee Name?", alias="PAYSTUB_PERIOD_EMPLOYEE_NAME"),
+                # tm.Query(text="What is the company Name?", alias="PAYSTUB_PERIOD_COMPANY_NAME"),
+                # tm.Query(text="What is the Current Gross Pay?", alias="PAYSTUB_PERIOD_CURRENT_GROSS_PAY"),
+                # tm.Query(text="What is the YTD Gross Pay?", alias="PAYSTUB_PERIOD_YTD_GROSS_PAY"),
+                # tm.Query(text="What is the regular hourly rate?", alias="PAYSTUB_PERIOD_REGULAR_HOURLY_RATE"),
+                # tm.Query(text="What is the holiday rate?", alias="PAYSTUB_PERIOD_HOLIDAY_RATE")
             ]
             manifest.s3_path = f"s3://{s3_bucket}/{s3_key}"
             manifest.queries_config = queries_config

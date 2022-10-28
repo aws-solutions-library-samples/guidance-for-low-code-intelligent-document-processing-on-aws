@@ -1,10 +1,7 @@
 from constructs import Construct
 import os
-# import typing
 import aws_cdk.aws_s3 as s3
 import aws_cdk.aws_ecr as ecr
-# import aws_cdk.aws_ec2 as ec2
-# import aws_cdk.aws_rds as rds
 import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_stepfunctions_tasks as tasks
@@ -28,11 +25,6 @@ class PaystubAndW2Spacy(Stack):
         s3_txt_output_prefix = "txt_output"
 
         current_path = pathlib.Path(__file__).parent.resolve()
-
-        # VPC
-        # vpc = ec2.Vpc.from_lookup(self, 'defaultVPC', is_default=True)
-
-        # vpc = ec2.Vpc(self, "Vpc", cidr="10.0.0.0/16")
 
         # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
         document_bucket = s3.Bucket(
@@ -90,25 +82,8 @@ class PaystubAndW2Spacy(Stack):
             }),
             result_path="$.textract_result")
 
-        # The initial classification model with AWS_PAYSTUBS and AWS_W2
-        # spacy_classification_task = tcdk.SpacySfnTask(
-        #     self,
-        #     "Classification",
-        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-        #     lambda_log_level="DEBUG",
-        #     timeout=Duration.hours(24),
-        #     input=sfn.TaskInput.from_object({
-        #         "Token":
-        #         sfn.JsonPath.task_token,
-        #         "ExecutionId":
-        #         sfn.JsonPath.string_at('$$.Execution.Id'),
-        #         "Payload":
-        #         sfn.JsonPath.entire_payload,
-        #     }),
-        #     result_path="$.classification")
-
         # Reference to a classification model with AWS_PAYSTUBS, AWS_W2, AWS_ID
-        # Example how to use a public container in Lambda (just wrap it in a Dockefile)
+        # Example how to use a public container in Lambda (just wrap it in a Dockerfile)
         classification_custom_docker: lambda_.IFunction = lambda_.DockerImageFunction(
             self,
             "ClassificationCustomDocker",
@@ -220,23 +195,6 @@ class PaystubAndW2Spacy(Stack):
             }),
             result_path="$.txt_output_location")
 
-        # csv_to_aurora_task = tcdk.CSVToAuroraTask(
-        #     self,
-        #     "CsvToAurora",
-        #     vpc=vpc,
-        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-        #     lambda_log_level="DEBUG",
-        #     timeout=Duration.hours(24),
-        #     input=sfn.TaskInput.from_object({
-        #         "Token":
-        #         sfn.JsonPath.task_token,
-        #         "ExecutionId":
-        #         sfn.JsonPath.string_at('$$.Execution.Id'),
-        #         "Payload":
-        #         sfn.JsonPath.entire_payload
-        #     }),
-        #     result_path="$.textract_result")
-
         lambda_random_function = lambda_.DockerImageFunction(
             self,
             "RandomIntFunction",
@@ -252,6 +210,15 @@ class PaystubAndW2Spacy(Stack):
             payload_response_only=True,
             result_path='$.Random')
 
+        task_random_number2 = tasks.LambdaInvoke(
+            self,
+            'Randomize2',
+            lambda_function=lambda_random_function,  #type: ignore
+            timeout=Duration.seconds(900),
+            payload_response_only=True,
+            result_path='$.Random')
+
+        #### ANALYZE ID Task ##################
         # textract_sync_task_id2 = tcdk.TextractGenericSyncSfnTask(
         #     self,
         #     "TextractSyncID2",
@@ -270,65 +237,7 @@ class PaystubAndW2Spacy(Stack):
         #         sfn.JsonPath.entire_payload,
         #     }),
         #     result_path="$.textract_result")
-
-        # textract_sync_task_expense2 = tcdk.TextractGenericSyncSfnTask(
-        #     self,
-        #     "TextractSyncExpense2",
-        #     s3_output_bucket=document_bucket.bucket_name,
-        #     s3_output_prefix=s3_output_prefix,
-        #     textract_api="EXPENSE",
-        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-        #     lambda_log_level="DEBUG",
-        #     timeout=Duration.hours(24),
-        #     input=sfn.TaskInput.from_object({
-        #         "Token":
-        #         sfn.JsonPath.task_token,
-        #         "ExecutionId":
-        #         sfn.JsonPath.string_at('$$.Execution.Id'),
-        #         "Payload":
-        #         sfn.JsonPath.entire_payload,
-        #     }),
-        #     result_path="$.textract_result")
-
-        task_random_number2 = tasks.LambdaInvoke(
-            self,
-            'Randomize2',
-            lambda_function=lambda_random_function,  #type: ignore
-            timeout=Duration.seconds(900),
-            payload_response_only=True,
-            result_path='$.Random')
-
-        # EC2 to access the DB
-        # sg = ec2.SecurityGroup(self, 'SSH', vpc=vpc, allow_all_outbound=True)
-        # sg.add_ingress_rule(ec2.Peer.prefix_list('somelist'),
-        #                     ec2.Port.tcp(22))
-
-        # instance_role = iam.Role(
-        #     self,
-        #     'RdsDataRole',
-        #     assumed_by=iam.ServicePrincipal('ec2.amazonaws.com'),
-        #     managed_policies=[
-        #         iam.ManagedPolicy.from_aws_managed_policy_name(
-        #             'AmazonRDSDataFullAccess')
-        #     ])
-
-        # mine = ec2.MachineImage.generic_linux(
-        #     {'us-east-1': "someAMI"})
-        # ec2_db_bastion = ec2.Instance(
-        #     self,
-        #     'DbBastion',
-        #     instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3,
-        #                                       ec2.InstanceSize.XLARGE),
-        #     machine_image=mine,
-        #     security_group=sg,
-        #     key_name='somekey',
-        #     role=instance_role,  #type: ignore
-        #     vpc=vpc,
-        #     vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC))
-
-        # ec2_db_bastion.add_security_group(
-        #     typing.cast(rds.ServerlessCluster, csv_to_aurora_task.db_cluster).
-        #     _security_groups[0])  #pyright: ignore [reportOptionalMemberAccess]
+        #### ANALYZE ID Task ##################
 
         # Define the Asynchronous flow with calling TextractAsync first, then converting the paginated JSON to one JSON file
         async_chain = sfn.Chain.start(textract_async_task).next(
@@ -356,7 +265,7 @@ class PaystubAndW2Spacy(Stack):
                            .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_PAYSTUBS'), configurator_task)\
                            .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_W2'), configurator_task)\
                            .otherwise(sfn.Fail(self, "DocumentTypeNotImplemented"))
-        # .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_ID'), textract_sync_task_id2) \
+                           # .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_ID'), textract_sync_task_id2) \
 
         # route according to number of queries
         number_queries_choice = sfn.Choice(self, 'NumberQueriesChoice') \
@@ -386,7 +295,6 @@ class PaystubAndW2Spacy(Stack):
         task_random_number.next(random_choice)
         async_chain_with_config.next(generate_csv)
         textract_sync_task_with_config.next(generate_csv)
-        # generate_csv.next(csv_to_aurora_task)
 
         workflow_chain = sfn.Chain \
             .start(decider_task) \

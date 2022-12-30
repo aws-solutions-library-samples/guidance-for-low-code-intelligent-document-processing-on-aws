@@ -1,19 +1,18 @@
 from constructs import Construct
 import os
 import aws_cdk.aws_s3 as s3
-import aws_cdk.aws_rds as rds
-import aws_cdk.aws_ec2 as ec2
 import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_stepfunctions_tasks as tasks
+import aws_cdk.aws_dynamodb as dynamodb
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
-import typing
-from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
+import aws_cdk.custom_resources as custom_resources
+from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, CustomResource)
 import amazon_textract_idp_cdk_constructs as tcdk
 
 
-class DocumentSplitterWorkflow(Stack):
+class LendingWorkflow(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -21,27 +20,107 @@ class DocumentSplitterWorkflow(Stack):
         script_location = os.path.dirname(__file__)
         s3_upload_prefix = "uploads"
         s3_output_prefix = "textract-output"
-        s3_txt_output_prefix = "textract-text-output"
+        s3_temp_output_prefix = "textract-temp-output"
+        s3_txt_output_prefix = "textract-txt-output"
         s3_csv_output_prefix = "textract-csv-output"
 
-        # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
+        # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True to maintain objects/document after destorying the stack
         document_bucket = s3.Bucket(self,
                                     "TextractSimpleSyncWorkflow",
                                     auto_delete_objects=True,
                                     removal_policy=RemovalPolicy.DESTROY)
         s3_output_bucket = document_bucket.bucket_name
-        workflow_name = "DocumentSplitterWorkflow"
+        workflow_name = "LendingWorkflow"
+
+        #### DOCUMENT TYPE CONFIGURATION SETUP ####
+        # Configuration table for Document-Type to Textract features mapping
+        configuration_table = dynamodb.Table(
+            self,
+            'TextractConfigurationTable',
+            partition_key=dynamodb.Attribute(
+                name='DOCUMENT_TYPE', type=dynamodb.AttributeType.STRING),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
+        configuration_init_function: lambda_.IFunction = lambda_.DockerImageFunction( #type: ignore
+            self,
+            "ConfigurationInitFunction",
+            code=lambda_.DockerImageCode.from_image_asset(
+                os.path.join(script_location,
+                             '../lambda/cfn_custom_configurator_prefill')),
+            memory_size=128,
+            timeout=Duration.seconds(600),
+            architecture=lambda_.Architecture.X86_64,
+            environment={
+                "LOG_LEVEL": 'DEBUG',
+                "CONFIGURATION_TABLE": configuration_table.table_name
+            })
+
+        configuration_init_function.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=['dynamodb:PutItem', 'dynamodb:GetItem'],
+                resources=[configuration_table.table_arn]))
+
+        provider = custom_resources.Provider(
+            self,
+            'Provider',
+            on_event_handler=configuration_init_function,
+        )
+
+        CustomResource(self, 'Resource', service_token=provider.service_token)
+
+        ### END OF DOCUMENT TYPE CONFIGURATION SETUP ####
 
         decider_task = tcdk.TextractPOCDecider(
             self,
             f"{workflow_name}-Decider",
         )
 
-        document_splitter_task = tcdk.DocumentSplitter(
+        textract_lending_task = tcdk.TextractGenericAsyncSfnTask(
             self,
-            "DocumentSplitter",
+            "TextractAnalzyeLending",
             s3_output_bucket=s3_output_bucket,
-            s3_output_prefix=s3_output_prefix)
+            s3_temp_output_prefix=s3_temp_output_prefix,
+            textract_api="LENDING",
+            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+            lambda_log_level="DEBUG",
+            timeout=Duration.hours(24),
+            input=sfn.TaskInput.from_object({
+                "Token":
+                sfn.JsonPath.task_token,
+                "ExecutionId":
+                sfn.JsonPath.string_at('$$.Execution.Id'),
+                "Payload":
+                sfn.JsonPath.entire_payload,
+            }),
+            result_path="$.textract_result")
+
+        textract_lending_to_json = tcdk.TextractAsyncToJSON(
+            self,
+            "GenerateLendingJSON",
+            s3_output_prefix=s3_output_prefix,
+            s3_output_bucket=s3_output_bucket,
+            textract_api='LENDING')
+
+        generate_lending_csv = tcdk.TextractGenerateCSV(
+            self,
+            "GenerateLendingCSV",
+            csv_s3_output_bucket=document_bucket.bucket_name,
+            csv_s3_output_prefix=s3_csv_output_prefix,
+            output_type='CSV',
+            textract_api='LENDING',
+            lambda_log_level="DEBUG",
+            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+            input=sfn.TaskInput.from_object({
+                "Token":
+                sfn.JsonPath.task_token,
+                "ExecutionId":
+                sfn.JsonPath.string_at('$$.Execution.Id'),
+                "Payload":
+                sfn.JsonPath.entire_payload,
+            }),
+            result_path="$.txt_output_location")
 
         textract_sync_task = tcdk.TextractGenericSyncSfnTask(
             self,
@@ -79,10 +158,22 @@ class DocumentSplitterWorkflow(Stack):
             }),
             result_path="$.txt_output_location")
 
+        classification_custom_docker: lambda_.IFunction = lambda_.DockerImageFunction(  #type: ignore
+            self,
+            "ClassificationCustomDocker",
+            code=lambda_.DockerImageCode.from_image_asset(
+                os.path.join(script_location,
+                             '../lambda/lending_sample_classification/')),
+            memory_size=10240,
+            architecture=lambda_.Architecture.X86_64,
+            timeout=Duration.seconds(900),
+            environment={"LOG_LEVEL": "DEBUG"})
+
         spacy_classification_task = tcdk.SpacySfnTask(
             self,
             "Classification",
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+            docker_image_function=classification_custom_docker,
             lambda_log_level="DEBUG",
             timeout=Duration.hours(24),
             input=sfn.TaskInput.from_object({
@@ -98,13 +189,13 @@ class DocumentSplitterWorkflow(Stack):
         configurator_task = tcdk.TextractClassificationConfigurator(
             self,
             f"{workflow_name}-Configurator",
-        )
+            configuration_table=configuration_table)
 
-        textract_queries_sync_task = tcdk.TextractGenericSyncSfnTask(
+        textract_queries_async_task = tcdk.TextractGenericAsyncSfnTask(
             self,
-            "TextractSyncQueries",
+            "TextractAsyncQueries",
             s3_output_bucket=s3_output_bucket,
-            s3_output_prefix=s3_output_prefix,
+            s3_temp_output_prefix=s3_output_prefix,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
             timeout=Duration.hours(24),
@@ -117,6 +208,12 @@ class DocumentSplitterWorkflow(Stack):
                 sfn.JsonPath.entire_payload,
             }),
             result_path="$.textract_result")
+
+        textract_async_to_json = tcdk.TextractAsyncToJSON(
+            self,
+            "TextractAsyncToJSON2",
+            s3_output_prefix=s3_output_prefix,
+            s3_output_bucket=s3_output_bucket)
 
         generate_csv = tcdk.TextractGenerateCSV(
             self,
@@ -137,32 +234,28 @@ class DocumentSplitterWorkflow(Stack):
             result_path="$.csv_output_location",
         )
 
-        vpc = ec2.Vpc(self,
-                      "Vpc",
-                      ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"))
-
-        rds_aurora_serverless = tcdk.RDSAuroraServerless(self,
-                                                         "RDSAuroraServerless",
-                                                         vpc=vpc)
-
-        csv_to_aurora_task = tcdk.CSVToAuroraTask(
+        unclassified_lambda_sfn: lambda_.IFunction = lambda_.DockerImageFunction(  #type: ignore
             self,
-            "CsvToAurora",
-            db_cluster=rds_aurora_serverless.db_cluster,
-            aurora_security_group=rds_aurora_serverless.aurora_security_group,
-            lambda_security_group=rds_aurora_serverless.lambda_security_group,
-            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-            lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
-            input=sfn.TaskInput.from_object({
-                "Token":
-                sfn.JsonPath.task_token,
-                "ExecutionId":
-                sfn.JsonPath.string_at('$$.Execution.Id'),
-                "Payload":
-                sfn.JsonPath.entire_payload
-            }),
-            result_path="$.textract_result")
+            'LendingUnclassifiedNumber',
+            code=lambda_.DockerImageCode.from_image_asset(
+                os.path.join(script_location,
+                             '../lambda/lending-unclassified')),
+            memory_size=128,
+            architecture=lambda_.Architecture.X86_64,
+            environment={"LOG_LEVEL": "DEBUG"})
+
+        unclassified_lambda_sfn.add_to_role_policy(
+            iam.PolicyStatement(actions=['s3:List*'],
+                                resources=[
+                                    f"arn:aws:s3:::{s3_output_bucket}",
+                                    f"arn:aws:s3:::{s3_output_bucket}/*"
+                                ]))
+
+        unclassified_lambda_task = tasks.LambdaInvoke(
+            self,
+            'UnclassifiedNumberTask',
+            lambda_function=unclassified_lambda_sfn,
+            output_path='$.Payload')
 
         lambda_generate_classification_mapping: lambda_.IFunction = lambda_.DockerImageFunction(  #type: ignore
             self,
@@ -173,81 +266,59 @@ class DocumentSplitterWorkflow(Stack):
             memory_size=128,
             architecture=lambda_.Architecture.X86_64,
             environment={})
+
         task_generate_classification_mapping = tasks.LambdaInvoke(
             self,
             "TaskGenerateClassificationMapping",
             lambda_function=lambda_generate_classification_mapping,
             output_path='$.Payload')
 
-        # EC2 to access the DB
-        # sg = ec2.SecurityGroup(self, 'SSH', vpc=vpc, allow_all_outbound=True)
-        # sg.add_ingress_rule(ec2.Peer.prefix_list('<some-prefix>'),
-        #                     ec2.Port.tcp(22))
-
-        # instance_role = iam.Role(
-        #     self,
-        #     'RdsDataRole',
-        #     assumed_by=iam.ServicePrincipal('ec2.amazonaws.com'),
-        #     managed_policies=[
-        #         iam.ManagedPolicy.from_aws_managed_policy_name(
-        #             'AmazonRDSDataFullAccess')
-        #     ])
-
-        # mine = ec2.MachineImage.generic_linux(
-        #     {'us-east-1': "<some-ec2-instance>"})
-        # ec2_db_bastion = ec2.Instance(
-        #     self,
-        #     'DbBastion',
-        #     instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3,
-        #                                       ec2.InstanceSize.XLARGE),
-        #     machine_image=mine,
-        #     security_group=sg,
-        #     key_name='<some-key-name>',
-        #     role=instance_role,  #type: ignore
-        #     vpc=vpc,
-        #     vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC))
-
-        # ec2_db_bastion.add_security_group(
-        #     typing.cast(rds.ServerlessCluster, csv_to_aurora_task.db_cluster).
-        #     _security_groups[0])  #pyright: ignore [reportOptionalMemberAccess]
+        analyze_lending_post_processing_chain = textract_lending_to_json.next(
+            generate_lending_csv)
 
         doc_type_choice = sfn.Choice(self, 'RouteDocType') \
                     .when(sfn.Condition.string_equals('$.classification.documentType', 'NONE'), task_generate_classification_mapping) \
-                    .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_OTHER'), task_generate_classification_mapping)\
-                    .otherwise(configurator_task)
+                    .when(sfn.Condition.string_equals('$.classification.documentType', 'CONTACT_FORM'), configurator_task)\
+                    .when(sfn.Condition.string_equals('$.classification.documentType', 'HOMEOWNERS_INSURANCE_APPLICATION'), configurator_task)\
+                    .otherwise(task_generate_classification_mapping)
 
-        map = sfn.Map(
-            self,
-            "Map State",
-            items_path=sfn.JsonPath.string_at('$.pages'),
-            parameters={
-                "manifest": {
-                    "s3Path":
-                    sfn.JsonPath.string_at("States.Format('s3://{}/{}/{}', \
-                  $.documentSplitterS3OutputBucket, \
-                  $.documentSplitterS3OutputPath, \
-                  $$.Map.Item.Value)")
-                },
-                "mime": sfn.JsonPath.string_at('$.mime'),
-                "numberOfPages": 1
-            })
+        configurator_task.next(textract_queries_async_task) \
+            .next(textract_async_to_json) \
+            .next(generate_csv) \
+            .next(task_generate_classification_mapping)
 
         textract_sync_task.next(generate_text) \
             .next(spacy_classification_task) \
             .next(doc_type_choice)
 
-        configurator_task.next(textract_queries_sync_task) \
-            .next(generate_csv) \
-            .next(csv_to_aurora_task) \
-            .next(task_generate_classification_mapping)
-
+        map = sfn.Map(
+            self,
+            "Unclassified Documents Map State",
+            items_path=sfn.JsonPath.string_at('$.unclassifiedDocsArray'),
+            parameters={
+                "manifest": {
+                    "s3Path":
+                    sfn.JsonPath.string_at("States.Format('s3://{}/{}/{}', \
+                  $.unclassifiedDocsBucket, \
+                  $.unclassifiedDocsPrefix, \
+                  $$.Map.Item.Value)")
+                },
+                "mime": sfn.JsonPath.string_at('$.mime'),
+                "numberOfPages": 1
+            })
         map.iterator(textract_sync_task)
+
+        unclassified_chain = sfn.Chain.start(unclassified_lambda_task) \
+            .next(map)
+
+        parallel_tasks = sfn.Parallel(self, 'parallel') \
+                            .branch(analyze_lending_post_processing_chain) \
+                            .branch(unclassified_chain)
 
         workflow_chain = sfn.Chain \
             .start(decider_task) \
-            .next(document_splitter_task) \
-            .next(map)
-        # .next(textract_sync_task1) \
+            .next(textract_lending_task) \
+            .next(parallel_tasks)
 
         # GENERIC
         state_machine = sfn.StateMachine(self,
@@ -289,15 +360,3 @@ class DocumentSplitterWorkflow(Stack):
             value=
             f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}"
         )
-        # CfnOutput(self,
-        #           "EC2_DB_BASTION_PUBLIC_DNS",
-        #           value=ec2_db_bastion.instance_public_dns_name
-        #           )  #pyright: ignore [reportOptionalMemberAccess]
-        CfnOutput(self,
-                  "DBClusterARN",
-                  value=csv_to_aurora_task.db_cluster.cluster_arn)
-        CfnOutput(self,
-                  "DBClusterSecretARN",
-                  value=typing.cast(rds.ServerlessCluster,
-                                    csv_to_aurora_task.db_cluster).secret.
-                  secret_arn)  #pyright: ignore [reportOptionalMemberAccess]

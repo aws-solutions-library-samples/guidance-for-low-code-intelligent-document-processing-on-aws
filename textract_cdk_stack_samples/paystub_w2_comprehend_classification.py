@@ -28,7 +28,7 @@ class PaystubAndW2Comprehend(Stack):
         # VPC
         # vpc = ec2.Vpc.from_lookup(self, 'defaultVPC', is_default=True)
 
-        vpc = ec2.Vpc(self, "Vpc", cidr="10.0.0.0/16")
+        vpc = ec2.Vpc(self, "Vpc", ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"))
 
         # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
         document_bucket = s3.Bucket(self,

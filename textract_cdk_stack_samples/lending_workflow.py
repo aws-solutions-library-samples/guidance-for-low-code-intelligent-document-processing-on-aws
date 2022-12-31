@@ -110,6 +110,7 @@ class LendingWorkflow(Stack):
             csv_s3_output_prefix=s3_csv_output_prefix,
             output_type='CSV',
             textract_api='LENDING',
+            meta_data_to_append=["DOCUMENT_ID"],
             lambda_log_level="DEBUG",
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             input=sfn.TaskInput.from_object({
@@ -222,6 +223,7 @@ class LendingWorkflow(Stack):
             csv_s3_output_prefix=s3_csv_output_prefix,
             lambda_log_level="DEBUG",
             output_type='CSV',
+            meta_data_to_append=["DOCUMENT_ID"],
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             input=sfn.TaskInput.from_object({
                 "Token":
@@ -255,6 +257,23 @@ class LendingWorkflow(Stack):
             self,
             'UnclassifiedNumberTask',
             lambda_function=unclassified_lambda_sfn,
+            output_path='$.Payload')
+
+        # The set_meta_data_function sets the document_id, so the process can later add that to the CSV output
+        set_meta_data_function: lambda_.IFunction = lambda_.DockerImageFunction(  #type: ignore
+            self,
+            'SetMetaDataFunction',
+            code=lambda_.DockerImageCode.from_image_asset(
+                os.path.join(script_location,
+                             '../lambda/set-manifest-meta-data')),
+            memory_size=128,
+            architecture=lambda_.Architecture.X86_64,
+            environment={"LOG_LEVEL": "ERROR"})
+
+        set_meta_data_task = tasks.LambdaInvoke(
+            self,
+            'SetMetaData',
+            lambda_function=set_meta_data_function,
             output_path='$.Payload')
 
         lambda_generate_classification_mapping: lambda_.IFunction = lambda_.DockerImageFunction(  #type: ignore
@@ -301,7 +320,9 @@ class LendingWorkflow(Stack):
                     sfn.JsonPath.string_at("States.Format('s3://{}/{}/{}', \
                   $.unclassifiedDocsBucket, \
                   $.unclassifiedDocsPrefix, \
-                  $$.Map.Item.Value)")
+                  $$.Map.Item.Value)"),
+                    "metaData":
+                    sfn.JsonPath.string_at('$.manifest.metaData')
                 },
                 "mime": sfn.JsonPath.string_at('$.mime'),
                 "numberOfPages": 1
@@ -316,7 +337,8 @@ class LendingWorkflow(Stack):
                             .branch(unclassified_chain)
 
         workflow_chain = sfn.Chain \
-            .start(decider_task) \
+            .start(set_meta_data_task) \
+            .next(decider_task) \
             .next(textract_lending_task) \
             .next(parallel_tasks)
 

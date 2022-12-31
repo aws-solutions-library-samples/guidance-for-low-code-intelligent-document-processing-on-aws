@@ -1,0 +1,18 @@
+{
+    "manifest": {
+        "s3Path": "s3://lendingworkflow-textractsimplesyncworkflow5c83a6b-1ieddf0hrnpxc/uploads/lending_console_demo_with_contacts copy.pdf",
+        "metaData": [{
+            "key": "meta_data_key_1",
+            "value": "meta_data_value_1"
+        },{
+            "key": "meta_data_key_2",
+            "value": "meta_data_value_2"
+        }]
+    },
+    "mime": "application/pdf",
+    "classification": null,
+    "numberOfPages": 8,
+    "textract_result": {
+        "TextractTempOutputJsonPath": "s3://lendingworkflow-textractsimplesyncworkflow5c83a6b-1ieddf0hrnpxc/textract-temp-output/4e7591b6e1c9242a18618af195cc5be1712dd43be1232ba13a09d15f15bf48b4"
+    }
+}

@@ -6,6 +6,7 @@ import logging
 import os
 import json
 import boto3
+import textractmanifest as tm
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,16 @@ def lambda_handler(event, _):
     logger.setLevel(log_level)
     logger.info(f"LOG_LEVEL: {log_level}")
     logger.info(json.dumps(event))
+
+    if 'Payload' in event and 'manifest' in event['Payload']:
+        manifest: tm.IDPManifest = tm.IDPManifestSchema().load(
+            event['Payload']['manifest'])  #type: ignore
+    elif 'manifest' in event:
+        manifest: tm.IDPManifest = tm.IDPManifestSchema().load(
+            event['manifest'])  #type: ignore
+    else:
+        manifest: tm.IDPManifest = tm.IDPManifestSchema().load(
+            event)  #type: ignore
 
     split_documents_unclassified_prefix = os.environ.get(
         'SPLIT_DOCUMENTS_UNCLASSIFIED_PREFIX',
@@ -44,6 +55,7 @@ def lambda_handler(event, _):
                     unclassified_pages.extend(content['Key'].split('/')[-1:])
 
     return {
+        'manifest': tm.IDPManifestSchema().dump(manifest),
         'unclassifiedDocsBucket': bucket,
         'unclassifiedDocsPrefix': prefix,
         'unclassifiedDocsArray': unclassified_pages,

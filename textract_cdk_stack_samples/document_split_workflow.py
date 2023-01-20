@@ -9,7 +9,7 @@ import aws_cdk.aws_stepfunctions_tasks as tasks
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
 import typing
-from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration )
+from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
 import amazon_textract_idp_cdk_constructs as tcdk
 
 
@@ -37,7 +37,11 @@ class DocumentSplitterWorkflow(Stack):
             f"{workflow_name}-Decider",
         )
 
-        document_splitter_task = tcdk.DocumentSplitter(self, "DocumentSplitter", s3_output_bucket=s3_output_bucket, s3_output_prefix=s3_output_prefix)
+        document_splitter_task = tcdk.DocumentSplitter(
+            self,
+            "DocumentSplitter",
+            s3_output_bucket=s3_output_bucket,
+            s3_output_prefix=s3_output_prefix)
 
         textract_sync_task = tcdk.TextractGenericSyncSfnTask(
             self,
@@ -74,7 +78,6 @@ class DocumentSplitterWorkflow(Stack):
                 sfn.JsonPath.entire_payload,
             }),
             result_path="$.txt_output_location")
-
 
         spacy_classification_task = tcdk.SpacySfnTask(
             self,
@@ -132,12 +135,15 @@ class DocumentSplitterWorkflow(Stack):
                 sfn.JsonPath.entire_payload,
             }),
             result_path="$.csv_output_location",
-            )
+        )
 
-        vpc = ec2.Vpc(self, "Vpc", cidr="10.0.0.0/16")
+        vpc = ec2.Vpc(self,
+                      "Vpc",
+                      ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"))
 
-        rds_aurora_serverless = tcdk.RDSAuroraServerless(self, "RDSAuroraServerless",
-                                 vpc=vpc)
+        rds_aurora_serverless = tcdk.RDSAuroraServerless(self,
+                                                         "RDSAuroraServerless",
+                                                         vpc=vpc)
 
         csv_to_aurora_task = tcdk.CSVToAuroraTask(
             self,
@@ -158,15 +164,20 @@ class DocumentSplitterWorkflow(Stack):
             }),
             result_path="$.textract_result")
 
-        lambda_generate_classification_mapping:lambda_.IFunction = lambda_.DockerImageFunction(
+        lambda_generate_classification_mapping: lambda_.IFunction = lambda_.DockerImageFunction(  #type: ignore
             self,
             "LambdaGenerateClassificationMapping",
             code=lambda_.DockerImageCode.from_image_asset(
-                os.path.join(script_location, '../lambda/map_classifications_lambda/')),
+                os.path.join(script_location,
+                             '../lambda/map_classifications_lambda/')),
             memory_size=128,
             architecture=lambda_.Architecture.X86_64,
             environment={})
-        task_generate_classification_mapping = tasks.LambdaInvoke(self, "TaskGenerateClassificationMapping", lambda_function=lambda_generate_classification_mapping, output_path='$.Payload')
+        task_generate_classification_mapping = tasks.LambdaInvoke(
+            self,
+            "TaskGenerateClassificationMapping",
+            lambda_function=lambda_generate_classification_mapping,
+            output_path='$.Payload')
 
         # EC2 to access the DB
         # sg = ec2.SecurityGroup(self, 'SSH', vpc=vpc, allow_all_outbound=True)
@@ -200,21 +211,26 @@ class DocumentSplitterWorkflow(Stack):
         #     typing.cast(rds.ServerlessCluster, csv_to_aurora_task.db_cluster).
         #     _security_groups[0])  #pyright: ignore [reportOptionalMemberAccess]
 
-
         doc_type_choice = sfn.Choice(self, 'RouteDocType') \
                     .when(sfn.Condition.string_equals('$.classification.documentType', 'NONE'), task_generate_classification_mapping) \
                     .when(sfn.Condition.string_equals('$.classification.documentType', 'AWS_OTHER'), task_generate_classification_mapping)\
                     .otherwise(configurator_task)
 
-
-        map = sfn.Map(self, "Map State", items_path=sfn.JsonPath.string_at('$.pages'), parameters={"manifest":
-            {"s3Path": sfn.JsonPath.string_at(
-                "States.Format('s3://{}/{}/{}', \
+        map = sfn.Map(
+            self,
+            "Map State",
+            items_path=sfn.JsonPath.string_at('$.pages'),
+            parameters={
+                "manifest": {
+                    "s3Path":
+                    sfn.JsonPath.string_at("States.Format('s3://{}/{}/{}', \
                   $.documentSplitterS3OutputBucket, \
                   $.documentSplitterS3OutputPath, \
-                  $$.Map.Item.Value)")},
-            "mime": sfn.JsonPath.string_at('$.mime'),
-            "numberOfPages": 1})
+                  $$.Map.Item.Value)")
+                },
+                "mime": sfn.JsonPath.string_at('$.mime'),
+                "numberOfPages": 1
+            })
 
         textract_sync_task.next(generate_text) \
             .next(spacy_classification_task) \
@@ -231,8 +247,7 @@ class DocumentSplitterWorkflow(Stack):
             .start(decider_task) \
             .next(document_splitter_task) \
             .next(map)
-            # .next(textract_sync_task1) \
-
+        # .next(textract_sync_task1) \
 
         # GENERIC
         state_machine = sfn.StateMachine(self,

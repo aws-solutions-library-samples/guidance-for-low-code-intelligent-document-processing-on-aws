@@ -11,6 +11,7 @@ from textract_cdk_stack_samples.simple_async_workflow import SimpleAsyncWorkflow
 from textract_cdk_stack_samples.simple_sync_workflow import SimpleSyncWorkflow
 from textract_cdk_stack_samples.simple_async_and_sync_workflow import SimpleSyncAndAsyncWorkflow
 from textract_cdk_stack_samples.document_split_workflow import DocumentSplitterWorkflow
+from textract_cdk_stack_samples.lending_workflow import LendingWorkflow
 
 app = cdk.App()
 
@@ -42,5 +43,6 @@ SimpleAsyncWorkflow(app, "SimpleAsyncWorkflow")
 SimpleSyncWorkflow(app, "SimpleSyncWorkflow")
 SimpleSyncAndAsyncWorkflow(app, "SimpleSyncAndAsyncWorkflow")
 DocumentSplitterWorkflow(app, "DocumentSplitterWorkflow")
+LendingWorkflow(app, "LendingWorkflow")
 
 app.synth()

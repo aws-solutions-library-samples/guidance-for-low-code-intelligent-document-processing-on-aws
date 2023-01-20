@@ -332,9 +332,26 @@ class LendingWorkflow(Stack):
         unclassified_chain = sfn.Chain.start(unclassified_lambda_task) \
             .next(map)
 
+        unclassified_state_machine = sfn.StateMachine(
+            self, "UnclassifiedStateMachine", definition=unclassified_chain)
+
+        unclassified_task = tasks.StepFunctionsStartExecution(
+            self,
+            "UnclassifiedProcessing",
+            state_machine=unclassified_state_machine,
+            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+            input=sfn.TaskInput.from_object({
+                "Token":
+                sfn.JsonPath.task_token,
+                "ExecutionId":
+                sfn.JsonPath.string_at('$$.Execution.Id'),
+                "Payload":
+                sfn.JsonPath.entire_payload,
+            }))
+
         parallel_tasks = sfn.Parallel(self, 'parallel') \
                             .branch(analyze_lending_post_processing_chain) \
-                            .branch(unclassified_chain)
+                            .branch(unclassified_task)
 
         workflow_chain = sfn.Chain \
             .start(set_meta_data_task) \

@@ -17,12 +17,14 @@ def lambda_handler(event, _):
     logger.info(f"LOG_LEVEL: {log_level}")
     logger.info(json.dumps(event))
 
-    if 'Payload' in event and 'manifest' in event['Payload']:
+    if 'Payload' in event:
+        payload = event['Payload']
+    else:
+        payload = event
+
+    if 'manifest' in payload:
         manifest: tm.IDPManifest = tm.IDPManifestSchema().load(
-            event['Payload']['manifest'])  #type: ignore
-    elif 'manifest' in event:
-        manifest: tm.IDPManifest = tm.IDPManifestSchema().load(
-            event['manifest'])  #type: ignore
+            payload['manifest'])  #type: ignore
     else:
         manifest: tm.IDPManifest = tm.IDPManifestSchema().load(
             event)  #type: ignore
@@ -32,10 +34,10 @@ def lambda_handler(event, _):
         "splitDocuments/UNCLASSIFIED/").strip('/')
 
     mime: str = ""
-    if 'mime' in event:
-        mime = event['mime']
+    if 'mime' in payload:
+        mime = payload['mime']
 
-    textract_temp_output_json_path = event["textract_result"][
+    textract_temp_output_json_path = payload["textract_result"][
         'TextractTempOutputJsonPath']
     bucket, prefix = textract_temp_output_json_path.replace("s3://",
                                                             "").split("/", 1)

@@ -4,9 +4,10 @@ import aws_cdk.aws_s3 as s3
 import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_stepfunctions_tasks as tasks
+import cdk_nag as nag
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
-from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
+from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, Aspects)
 import amazon_textract_idp_cdk_constructs as tcdk
 
 
@@ -22,10 +23,20 @@ class DemoQueries(Stack):
         s3_temp_output_prefix = "textract-temp-output"
 
         # BEWARE! This is a demo/POC setup, remote the auto_delete_objects=True and
-        document_bucket = s3.Bucket(self,
-                                    "TextratcQueries",
-                                    auto_delete_objects=True,
-                                    removal_policy=RemovalPolicy.DESTROY)
+        document_bucket = s3.Bucket(
+            self,
+            "TextratcQueries",
+            auto_delete_objects=True,
+            removal_policy=RemovalPolicy.DESTROY,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            enforce_ssl=True,
+            encryption=s3.BucketEncryption.S3_MANAGED)
+        nag.NagSuppressions.add_resource_suppressions(
+            document_bucket,
+            suppressions=[{
+                "id": 'AwsSolutions-S1',
+                "reason": "POC setup does not require logging"
+            }])
         s3_output_bucket = document_bucket.bucket_name
         workflow_name = "Queries"
 
@@ -185,3 +196,5 @@ class DemoQueries(Stack):
             value=
             f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}"
         )
+
+        Aspects.of(self).add(nag.AwsSolutionsChecks())

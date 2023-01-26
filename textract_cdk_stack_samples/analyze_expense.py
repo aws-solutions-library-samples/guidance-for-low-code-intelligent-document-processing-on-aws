@@ -19,10 +19,12 @@ class AnalyzeExpenseStack(Stack):
         s3_output_prefix = "textract-output"
 
         # BEWARE! This is a demo/POC setup, remote the auto_delete_objects=True and
-        document_bucket = s3.Bucket(self,
-                                    "SchademCdkIdpStackPaystubW2",
-                                    auto_delete_objects=True,
-                                    removal_policy=RemovalPolicy.DESTROY)
+        document_bucket = s3.Bucket(
+            self,
+            "SchademCdkIdpStackPaystubW2",
+            auto_delete_objects=True,
+            removal_policy=RemovalPolicy.DESTROY,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL)
 
         # EXPENSE
         decider_task_expense = tcdk.TextractPOCDecider(

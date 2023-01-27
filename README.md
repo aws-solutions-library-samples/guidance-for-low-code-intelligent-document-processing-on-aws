@@ -197,12 +197,23 @@ cdk deploy AnalyzeExpense
 
 Example of using the [Amazon Textract Analyze Lending API](https://docs.aws.amazon.com/textract/latest/dg/API_StartLendingAnalysis.html) to extract information from mortgage document, then generate a CSV and process pages that were marked UNCLASSIFIED by the Analzye Lending API, process them in a separate branch, extract information and generate a CSV as well
 
+![Lending Workflow](https://amazon-textract-public-content.s3.us-east-2.amazonaws.com/idp-cdk-samples/LendingWorkflow.svg)
+
 Deploy using 
 ```bash
 cdk deploy AnalyzeLending
 ```
 
 The workflow uses a custom classification model to identify the HOMEOWNERS_INSURANCE_APPLICATION and CONTACT_FORM. The classifier ist just trained on the sample images and for demo purposes only.
+
+```bash
+aws s3 cp docs/Paystub_1_reMars.png $(aws cloudformation list-exports --query 'Exports[?Name==`DemoQueries-DocumentUploadLocation`].Value' --output text)
+```
+
+then open the StepFunction flow. 
+```bash
+aws cloudformation list-exports --query 'Exports[?Name==`LendingWorkflow-StepFunctionFlowLink`].Value' --output text
+```
 
 
 # Create your own workflows

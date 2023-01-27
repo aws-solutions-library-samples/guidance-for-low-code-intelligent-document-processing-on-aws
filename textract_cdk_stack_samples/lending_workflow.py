@@ -8,7 +8,8 @@ import aws_cdk.aws_dynamodb as dynamodb
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
 import aws_cdk.custom_resources as custom_resources
-from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, CustomResource)
+from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, CustomResource,
+                     Aws)
 import amazon_textract_idp_cdk_constructs as tcdk
 
 
@@ -387,7 +388,8 @@ class LendingWorkflow(Stack):
         CfnOutput(
             self,
             "DocumentUploadLocation",
-            value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/")
+            value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/",
+            export_name=f"{Aws.STACK_NAME}-DocumentUploadLocation")
         CfnOutput(
             self,
             "StartStepFunctionLambdaLogGroup",
@@ -397,5 +399,5 @@ class LendingWorkflow(Stack):
             self,
             'StepFunctionFlowLink',
             value=
-            f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}"
-        )
+            f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}",
+            export_name=f"{Aws.STACK_NAME}-StepFunctionFlowLink")

@@ -46,6 +46,7 @@ At the moment there are 10 stacks available:
 * AnalyzeExpense - only calling AnalyzeExpense
 * DemoQueries - workflow with calling Textract + Queries for alldocs
 * DocumentSplitterWorkflow - Example of splitting a multi-page document, classifying each page and extraction information depending on the document type for the page
+* LendingWorkflow - Example of using the [Amazon Textract Analyze Lending API](https://docs.aws.amazon.com/textract/latest/dg/API_StartLendingAnalysis.html) to extract information from mortgage document, then generate a CSV and process pages that were marked UNCLASSIFIED by the Analzye Lending API, process them in a separate branch, extract information and generate a CSV as well
 
 
 # Sample Workflows
@@ -191,6 +192,18 @@ cdk deploy AnalyzeExpense
 ```
 
 <img alt="AnalyzeExpense_graph" width="300px" src="images/AnalyzeExpense_graph.svg" />
+
+## Analyze Lending
+
+Example of using the [Amazon Textract Analyze Lending API](https://docs.aws.amazon.com/textract/latest/dg/API_StartLendingAnalysis.html) to extract information from mortgage document, then generate a CSV and process pages that were marked UNCLASSIFIED by the Analzye Lending API, process them in a separate branch, extract information and generate a CSV as well
+
+Deploy using 
+```bash
+cdk deploy AnalyzeLending
+```
+
+The workflow uses a custom classification model to identify the HOMEOWNERS_INSURANCE_APPLICATION and CONTACT_FORM. The classifier ist just trained on the sample images and for demo purposes only.
+
 
 # Create your own workflows
 

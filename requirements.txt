@@ -3,3 +3,4 @@ constructs>=10.0.0,<11.0.0
 boto3
 amazon-textract-idp-cdk-constructs>=0.0.11
 schadem-tidp-manifest==0.0.11
+cdk-nag

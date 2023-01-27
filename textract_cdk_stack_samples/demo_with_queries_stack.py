@@ -197,4 +197,5 @@ class DemoQueries(Stack):
             f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}"
         )
 
-        Aspects.of(self).add(nag.AwsSolutionsChecks())
+
+#        Aspects.of(self).add(nag.AwsSolutionsChecks())

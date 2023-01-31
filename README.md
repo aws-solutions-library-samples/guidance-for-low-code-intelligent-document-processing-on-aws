@@ -207,7 +207,7 @@ cdk deploy LendingWorkflow
 The workflow uses a custom classification model to identify the HOMEOWNERS_INSURANCE_APPLICATION and CONTACT_FORM. The classifier ist just trained on the sample images and for demo purposes only.
 
 ```bash
-aws s3 cp docs/Paystub_1_reMars.png $(aws cloudformation list-exports --query 'Exports[?Name==`LendingWorkflow-DocumentUploadLocation`].Value' --output text)
+aws s3 cp s3://amazon-textract-public-content/idp-cdk-samples/lending_console_demo_with_contacts.pdf $(aws cloudformation list-exports --query 'Exports[?Name==`LendingWorkflow-DocumentUploadLocation`].Value' --output text)
 ```
 
 then open the StepFunction flow. 

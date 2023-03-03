@@ -28,7 +28,9 @@ class PaystubAndW2Spacy(Stack):
         # VPC
         # vpc = ec2.Vpc.from_lookup(self, 'defaultVPC', is_default=True)
 
-        vpc = ec2.Vpc(self, "Vpc", ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"))
+        vpc = ec2.Vpc(self,
+                      "Vpc",
+                      ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"))
 
         # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
         document_bucket = s3.Bucket(self,
@@ -381,40 +383,18 @@ class PaystubAndW2Spacy(Stack):
                   "SpacyCallLambdaLogGroup",
                   value=spacy_classification_task.spacy_sync_lambda_log_group.
                   log_group_name)
-        CfnOutput(self,
-                  "TextractSyncLambdaLogGroup",
-                  value=textract_sync_task.textract_sync_lambda_log_group.
-                  log_group_name)
-        CfnOutput(self,
-                  "TextractSyncWithConfigLambdaLogGroup",
-                  value=textract_sync_task_with_config.
-                  textract_sync_lambda_log_group.log_group_name)
         # CfnOutput(self,
         #           "DashboardLink",
         #           valu e=textract_sync_task.dashboard_name)
         CfnOutput(self,
                   "StateMachineARN",
                   value=textract_sync_task.state_machine.state_machine_arn)
-        CfnOutput(self,
-                  "CSVtoAuroraLambdaLogGroup",
-                  value=csv_to_aurora_task.csv_to_aurora_lambda_log_group.
-                  log_group_name)
-        CfnOutput(self,
-                  "GenerateCSVLambdaLogGroup",
-                  value=generate_text.generate_csv_log_group.log_group_name)
-        CfnOutput(
-            self,
-            "StartStepFunctionLambdaLogGroup",
-            value=lambda_step_start_step_function.log_group.log_group_name)
         # CfnOutput(self,
         #           "ConfiguratorTable",
         #           value=configurator_task.configuration_table.table_name)
         CfnOutput(self,
                   "ConfiguratorFunctionArn",
                   value=configurator_task.configurator_function.function_arn)
-        CfnOutput(self,
-                  "ConfiguratorFunctionLogGroup",
-                  value=configurator_task.configurator_function_log_group_name)
         CfnOutput(self,
                   "DBClusterARN",
                   value=csv_to_aurora_task.db_cluster.cluster_arn)

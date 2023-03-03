@@ -1,11 +1,11 @@
 from constructs import Construct
 import os
 import aws_cdk.aws_s3 as s3
-import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_stepfunctions_tasks as tasks
 import cdk_nag as nag
 import aws_cdk.aws_lambda as lambda_
+import aws_cdk.aws_lambda_event_sources as lambda_event_sources
 import aws_cdk.aws_iam as iam
 from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, Aws)
 import amazon_textract_idp_cdk_constructs as tcdk
@@ -43,13 +43,16 @@ class DemoQueries(Stack):
         decider_task = tcdk.TextractPOCDecider(
             self,
             f"{workflow_name}-Decider",
-        )
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_upload_prefix)
 
         textract_sync_task = tcdk.TextractGenericSyncSfnTask(
             self,
             "TextractSync",
             s3_output_bucket=document_bucket.bucket_name,
             s3_output_prefix=s3_output_prefix,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_upload_prefix,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
             timeout=Duration.hours(24),
@@ -68,6 +71,8 @@ class DemoQueries(Stack):
             "TextractAsync",
             s3_output_bucket=s3_output_bucket,
             s3_temp_output_prefix=s3_temp_output_prefix,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_upload_prefix,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
             timeout=Duration.hours(24),
@@ -85,7 +90,9 @@ class DemoQueries(Stack):
             self,
             "AsyncToJSON",
             s3_output_prefix=s3_output_prefix,
-            s3_output_bucket=s3_output_bucket)
+            s3_output_bucket=s3_output_bucket,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_temp_output_prefix)
 
         lambda_random_function = lambda_.DockerImageFunction(
             self,
@@ -108,6 +115,8 @@ class DemoQueries(Stack):
             "GenerateCsvTask",
             csv_s3_output_bucket=document_bucket.bucket_name,
             csv_s3_output_prefix=s3_csv_output_prefix,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_temp_output_prefix,
             lambda_log_level="DEBUG",
             output_type='CSV',
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
@@ -171,11 +180,17 @@ class DemoQueries(Stack):
             iam.PolicyStatement(actions=['states:StartExecution'],
                                 resources=[state_machine.state_machine_arn]))
 
-        document_bucket.add_event_notification(
-            s3.EventType.OBJECT_CREATED,
-            s3n.LambdaDestination(
-                lambda_step_start_step_function),  #type: ignore
-            s3.NotificationKeyFilter(prefix=s3_upload_prefix))
+        s3_event = lambda_event_sources.S3EventSource(
+            bucket=document_bucket,
+            events=[s3.EventType.OBJECT_CREATED],
+            filters=[s3.NotificationKeyFilter(prefix=s3_upload_prefix)])
+        lambda_step_start_step_function.add_event_source(s3_event)
+
+        # document_bucket.add_event_notification(
+        #     s3.EventType.OBJECT_CREATED,
+        #     s3n.LambdaDestination(
+        #         lambda_step_start_step_function),  #type: ignore
+        #     s3.NotificationKeyFilter(prefix=s3_upload_prefix))
 
         # OUTPUT
         CfnOutput(

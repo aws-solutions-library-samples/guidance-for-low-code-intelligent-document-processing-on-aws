@@ -1,15 +1,15 @@
 from constructs import Construct
 import os
-import typing
+# import typing
 import aws_cdk.aws_s3 as s3
 import aws_cdk.aws_ec2 as ec2
-import aws_cdk.aws_rds as rds
+# import aws_cdk.aws_rds as rds
 import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_stepfunctions_tasks as tasks
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
-from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
+from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, Aws)
 import amazon_textract_idp_cdk_constructs as tcdk
 
 
@@ -24,11 +24,14 @@ class PaystubAndW2Comprehend(Stack):
         s3_temp_output_prefix = "textract-temp-output"
         s3_csv_output_prefix = "csv_output"
         s3_txt_output_prefix = "txt_output"
+        s3_comprehend_output_prefix = "comprehend_output"
 
         # VPC
         # vpc = ec2.Vpc.from_lookup(self, 'defaultVPC', is_default=True)
 
-        vpc = ec2.Vpc(self, "Vpc", ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"))
+        vpc = ec2.Vpc(self,
+                      "Vpc",
+                      ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"))
 
         # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
         document_bucket = s3.Bucket(self,
@@ -41,7 +44,8 @@ class PaystubAndW2Comprehend(Stack):
         decider_task = tcdk.TextractPOCDecider(
             self,
             f"{workflow_name}-Decider",
-        )
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_upload_prefix)
 
         configurator_task = tcdk.TextractClassificationConfigurator(
             self,
@@ -53,6 +57,8 @@ class PaystubAndW2Comprehend(Stack):
             "TextractSync",
             s3_output_bucket=document_bucket.bucket_name,
             s3_output_prefix=s3_output_prefix,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_upload_prefix,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
             timeout=Duration.hours(24),
@@ -71,9 +77,10 @@ class PaystubAndW2Comprehend(Stack):
             "TextractSyncWithConfig",
             s3_output_bucket=document_bucket.bucket_name,
             s3_output_prefix=s3_output_prefix,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_upload_prefix,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
             input=sfn.TaskInput.from_object({
                 "Token":
                 sfn.JsonPath.task_token,
@@ -87,11 +94,14 @@ class PaystubAndW2Comprehend(Stack):
         comprehend_sync_task = tcdk.ComprehendGenericSyncSfnTask(
             self,
             "Classification",
+            s3_output_bucket=document_bucket.bucket_name,
+            s3_output_prefix=s3_comprehend_output_prefix,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_output_prefix,
             comprehend_classifier_arn=
-            'arn:aws:comprehend:us-east-1:913165245630:document-classifier-endpoint/PaystubW2',
+            'arn:aws:comprehend:us-east-1:913165245630:document-classifier-endpoint/NotSure',
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
             input=sfn.TaskInput.from_object({
                 "Token":
                 sfn.JsonPath.task_token,
@@ -107,6 +117,8 @@ class PaystubAndW2Comprehend(Stack):
             "TextractAsync",
             s3_output_bucket=s3_output_bucket,
             s3_temp_output_prefix=s3_temp_output_prefix,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_upload_prefix,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
             timeout=Duration.hours(24),
@@ -125,9 +137,10 @@ class PaystubAndW2Comprehend(Stack):
             "TextractAsyncWithConfig",
             s3_output_bucket=s3_output_bucket,
             s3_temp_output_prefix=s3_temp_output_prefix,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_upload_prefix,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
             input=sfn.TaskInput.from_object({
                 "Token":
                 sfn.JsonPath.task_token,
@@ -137,23 +150,30 @@ class PaystubAndW2Comprehend(Stack):
                 sfn.JsonPath.entire_payload,
             }),
             result_path="$.textract_result")
+
         textract_async_to_json = tcdk.TextractAsyncToJSON(
             self,
-            "TextractAsyncToJSON2",
+            "AsyncToJSON",
             s3_output_prefix=s3_output_prefix,
-            s3_output_bucket=s3_output_bucket)
+            s3_output_bucket=s3_output_bucket,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_temp_output_prefix)
 
         textract_async_with_config_to_json = tcdk.TextractAsyncToJSON(
             self,
             "TextractAsyncWithConfigToJSON",
             s3_output_prefix=s3_output_prefix,
-            s3_output_bucket=s3_output_bucket)
+            s3_output_bucket=s3_output_bucket,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_temp_output_prefix)
 
         generate_csv = tcdk.TextractGenerateCSV(
             self,
             "GenerateCsvTask",
             csv_s3_output_bucket=document_bucket.bucket_name,
             csv_s3_output_prefix=s3_csv_output_prefix,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_output_prefix,
             lambda_log_level="DEBUG",
             output_type='CSV',
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
@@ -172,6 +192,8 @@ class PaystubAndW2Comprehend(Stack):
             "GenerateText",
             csv_s3_output_bucket=document_bucket.bucket_name,
             csv_s3_output_prefix=s3_txt_output_prefix,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_output_prefix,
             output_type='LINES',
             lambda_log_level="DEBUG",
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
@@ -185,22 +207,21 @@ class PaystubAndW2Comprehend(Stack):
             }),
             result_path="$.txt_output_location")
 
-        csv_to_aurora_task = tcdk.CSVToAuroraTask(
-            self,
-            "CsvToAurora",
-            vpc=vpc,
-            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-            lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
-            input=sfn.TaskInput.from_object({
-                "Token":
-                sfn.JsonPath.task_token,
-                "ExecutionId":
-                sfn.JsonPath.string_at('$$.Execution.Id'),
-                "Payload":
-                sfn.JsonPath.entire_payload
-            }),
-            result_path="$.textract_result")
+        # csv_to_aurora_task = tcdk.CSVToAuroraTask(
+        #     self,
+        #     "CsvToAurora",
+        #     vpc=vpc,
+        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+        #     lambda_log_level="DEBUG",
+        #     input=sfn.TaskInput.from_object({
+        #         "Token":
+        #         sfn.JsonPath.task_token,
+        #         "ExecutionId":
+        #         sfn.JsonPath.string_at('$$.Execution.Id'),
+        #         "Payload":
+        #         sfn.JsonPath.entire_payload
+        #     }),
+        #     result_path="$.textract_result")
 
         lambda_random_function = lambda_.DockerImageFunction(
             self,
@@ -214,7 +235,6 @@ class PaystubAndW2Comprehend(Stack):
             self,
             'Randomize',
             lambda_function=lambda_random_function,  #type: ignore
-            timeout=Duration.seconds(900),
             payload_response_only=True,
             result_path='$.Random')
 
@@ -223,10 +243,11 @@ class PaystubAndW2Comprehend(Stack):
             "TextractSyncID2",
             s3_output_bucket=document_bucket.bucket_name,
             s3_output_prefix=s3_output_prefix,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_upload_prefix,
             textract_api="ANALYZEID",
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
             input=sfn.TaskInput.from_object({
                 "Token":
                 sfn.JsonPath.task_token,
@@ -242,10 +263,11 @@ class PaystubAndW2Comprehend(Stack):
             "TextractSyncExpense2",
             s3_output_bucket=document_bucket.bucket_name,
             s3_output_prefix=s3_output_prefix,
+            s3_input_bucket=document_bucket.bucket_name,
+            s3_input_prefix=s3_upload_prefix,
             textract_api="EXPENSE",
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
             input=sfn.TaskInput.from_object({
                 "Token":
                 sfn.JsonPath.task_token,
@@ -260,7 +282,6 @@ class PaystubAndW2Comprehend(Stack):
             self,
             'Randomize2',
             lambda_function=lambda_random_function,  #type: ignore
-            timeout=Duration.seconds(900),
             payload_response_only=True,
             result_path='$.Random')
 
@@ -343,7 +364,7 @@ class PaystubAndW2Comprehend(Stack):
         task_random_number2.next(random_choice2)
         async_chain_with_config.next(generate_csv)
         textract_sync_task_with_config.next(generate_csv)
-        generate_csv.next(csv_to_aurora_task)
+        # generate_csv.next(csv_to_aurora_task)
         task_random_number.next(random_choice)
 
         workflow_chain = sfn.Chain \
@@ -377,69 +398,41 @@ class PaystubAndW2Comprehend(Stack):
         CfnOutput(
             self,
             "DocumentUploadLocation",
-            value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/")
-        CfnOutput(self,
-                  "ComprehendCallLambdaLogGroup",
-                  value=comprehend_sync_task.comprehend_sync_lambda_log_group.
-                  log_group_name)
-        CfnOutput(self,
-                  "TextractSyncLambdaLogGroup",
-                  value=textract_sync_task.textract_sync_lambda_log_group.
-                  log_group_name)
-        CfnOutput(self,
-                  "TextractSyncWithConfigLambdaLogGroup",
-                  value=textract_sync_task_with_config.
-                  textract_sync_lambda_log_group.log_group_name)
+            value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/",
+            export_name=f"{Aws.STACK_NAME}-DocumentUploadLocation")
         # CfnOutput(self,
         #           "DashboardLink",
         #           valu e=textract_sync_task.dashboard_name)
         CfnOutput(self,
                   "StateMachineARN",
                   value=textract_sync_task.state_machine.state_machine_arn)
-        CfnOutput(self,
-                  "CSVtoAuroraLambdaLogGroup",
-                  value=csv_to_aurora_task.csv_to_aurora_lambda_log_group.
-                  log_group_name)
-        CfnOutput(self,
-                  "GenerateCSVLambdaLogGroup",
-                  value=generate_text.generate_csv_log_group.log_group_name)
-        CfnOutput(self,
-                  "StartStepFunctionLambdaLogGroup",
-                  value=lambda_start_step_function.log_group.log_group_name)
-        CfnOutput(self,
-                  "ComprehendSyncLambdaLogGroup",
-                  value=comprehend_sync_task.comprehend_sync_lambda_log_group.
-                  log_group_name)
         # CfnOutput(self,
         #           "ConfiguratorTable",
         #           value=configurator_task.configuration_table.table_name)
         CfnOutput(self,
                   "ConfiguratorFunctionArn",
                   value=configurator_task.configurator_function.function_arn)
-        CfnOutput(self,
-                  "ConfiguratorFunctionLogGroup",
-                  value=configurator_task.configurator_function_log_group_name)
-        CfnOutput(self,
-                  "DBClusterARN",
-                  value=csv_to_aurora_task.db_cluster.cluster_arn)
-        CfnOutput(self,
-                  "DBClusterSecretARN",
-                  value=typing.cast(rds.ServerlessCluster,
-                                    csv_to_aurora_task.db_cluster).secret.
-                  secret_arn)  #pyright: ignore [reportOptionalMemberAccess]
-        CfnOutput(self,
-                  "DBClusterEndpoint",
-                  value=typing.cast(
-                      rds.ServerlessCluster,
-                      csv_to_aurora_task.db_cluster).cluster_endpoint.hostname
-                  )  #pyright: ignore [reportOptionalMemberAccess]
-        CfnOutput(
-            self,
-            "DBClusterSecurityGroup",
-            value=typing.cast(
-                rds.ServerlessCluster,
-                csv_to_aurora_task.db_cluster)._security_groups[0].
-            security_group_id)  #pyright: ignore [reportOptionalMemberAccess]
+        # CfnOutput(self,
+        #           "DBClusterARN",
+        #           value=csv_to_aurora_task.db_cluster.cluster_arn)
+        # CfnOutput(self,
+        #           "DBClusterSecretARN",
+        #           value=typing.cast(rds.ServerlessCluster,
+        #                             csv_to_aurora_task.db_cluster).secret.
+        #           secret_arn)  #pyright: ignore [reportOptionalMemberAccess]
+        # CfnOutput(self,
+        #           "DBClusterEndpoint",
+        #           value=typing.cast(
+        #               rds.ServerlessCluster,
+        #               csv_to_aurora_task.db_cluster).cluster_endpoint.hostname
+        #           )  #pyright: ignore [reportOptionalMemberAccess]
+        # CfnOutput(
+        #     self,
+        #     "DBClusterSecurityGroup",
+        #     value=typing.cast(
+        #         rds.ServerlessCluster,
+        #         csv_to_aurora_task.db_cluster)._security_groups[0].
+        #     security_group_id)  #pyright: ignore [reportOptionalMemberAccess]
 
         # CfnOutput(self,
         #           "EC2_DB_BASTION_PUBLIC_DNS",

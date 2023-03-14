@@ -116,7 +116,7 @@ class DemoQueries(Stack):
             csv_s3_output_bucket=document_bucket.bucket_name,
             csv_s3_output_prefix=s3_csv_output_prefix,
             s3_input_bucket=document_bucket.bucket_name,
-            s3_input_prefix=s3_temp_output_prefix,
+            s3_input_prefix=s3_output_prefix,
             lambda_log_level="DEBUG",
             output_type='CSV',
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,

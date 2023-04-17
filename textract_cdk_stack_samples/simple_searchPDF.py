@@ -8,7 +8,6 @@ import aws_cdk.aws_iam as iam
 from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
 import amazon_textract_idp_cdk_constructs as tcdk
 
-
 class SimpleSearchPDF(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:

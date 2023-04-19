@@ -13,6 +13,7 @@ from textract_cdk_stack_samples.simple_async_and_sync_workflow import SimpleSync
 from textract_cdk_stack_samples.document_split_workflow import DocumentSplitterWorkflow
 from textract_cdk_stack_samples.lending_workflow import LendingWorkflow
 from textract_cdk_stack_samples.generate_csv_workflow import GenerateCSVWorkflow
+from textract_cdk_stack_samples.simple_searchPDF import SimpleSearchPDF
 
 app = cdk.App()
 
@@ -46,5 +47,6 @@ SimpleSyncAndAsyncWorkflow(app, "SimpleSyncAndAsyncWorkflow")
 DocumentSplitterWorkflow(app, "DocumentSplitterWorkflow")
 LendingWorkflow(app, "LendingWorkflow")
 GenerateCSVWorkflow(app, "GenerateCSVWorkflow")
+SimpleSearchPDF(app, "SimpleSearchPDF")
 
 app.synth()

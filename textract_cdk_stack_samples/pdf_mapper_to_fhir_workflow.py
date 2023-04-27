@@ -26,7 +26,7 @@ class PdfMapperToFhirWorkflow(Stack):
                                     removal_policy=RemovalPolicy.DESTROY)
         s3_output_bucket = document_bucket.bucket_name
         s3_temp_output_prefix = "temp"
-        workflow_name = "PdfToFhirWorkflow"
+        workflow_name = "PdfToFhir"
 
         decider_task = tcdk.TextractPOCDecider(
             self,

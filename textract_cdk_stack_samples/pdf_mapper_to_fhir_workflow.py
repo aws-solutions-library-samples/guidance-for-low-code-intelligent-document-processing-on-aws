@@ -21,12 +21,12 @@ class PdfMapperToFhirWorkflow(Stack):
 
         # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
         document_bucket = s3.Bucket(self,
-                                    "TextractSimpleSyncWorkflow",
+                                    "PdfToFhirWorkflow",
                                     auto_delete_objects=True,
                                     removal_policy=RemovalPolicy.DESTROY)
         s3_output_bucket = document_bucket.bucket_name
         s3_temp_output_prefix = "temp"
-        workflow_name = "SimpleSyncWorkflow"
+        workflow_name = "PdfToFhirWorkflow"
 
         decider_task = tcdk.TextractPOCDecider(
             self,
@@ -43,11 +43,11 @@ class PdfMapperToFhirWorkflow(Stack):
             timeout=Duration.hours(24),
             input=sfn.TaskInput.from_object({
                 "Token":
-                    sfn.JsonPath.task_token,
+                sfn.JsonPath.task_token,
                 "ExecutionId":
-                    sfn.JsonPath.string_at('$$.Execution.Id'),
+                sfn.JsonPath.string_at('$$.Execution.Id'),
                 "Payload":
-                    sfn.JsonPath.entire_payload,
+                sfn.JsonPath.entire_payload,
             }),
             result_path="$.textract_result")
 
@@ -57,7 +57,8 @@ class PdfMapperToFhirWorkflow(Stack):
             s3_output_prefix=s3_output_prefix,
             s3_output_bucket=s3_output_bucket)
 
-        healthlake_resource = healthlake.CfnFHIRDatastore(self,
+        healthlake_resource = healthlake.CfnFHIRDatastore(
+            self,
             "HealthlakeDB",
             datastore_name='CDocs',
             datastore_type_version='R4')
@@ -65,12 +66,12 @@ class PdfMapperToFhirWorkflow(Stack):
         healthlake_task = tcdk.TextractPdfMapperForFhir(
             self,
             "Healthlake",
-            healthlake_endpoint=healthlake_resource.get_att('DatastoreEndpoint').to_string()
-        )
+            healthlake_endpoint=healthlake_resource.get_att(
+                'DatastoreEndpoint').to_string())
 
-#        healthlake_task.pdf_mapper_for_fhir_function.add_to_role_policy(
-#            iam.PolicyStatement(actions=['healthlake:CreateResource'],
-#                                resources=[healthlake_resource.get_att('DatastoreArn').to_string()]))
+        #        healthlake_task.pdf_mapper_for_fhir_function.add_to_role_policy(
+        #            iam.PolicyStatement(actions=['healthlake:CreateResource'],
+        #                                resources=[healthlake_resource.get_att('DatastoreArn').to_string()]))
 
         workflow_chain = sfn.Chain \
             .start(decider_task) \

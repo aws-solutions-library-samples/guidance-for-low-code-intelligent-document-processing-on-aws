@@ -8,6 +8,7 @@ import aws_cdk.aws_iam as iam
 from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
 import amazon_textract_idp_cdk_constructs as tcdk
 
+
 class SimpleSearchPDF(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
@@ -30,11 +31,11 @@ class SimpleSearchPDF(Stack):
             self,
             f"{workflow_name}-Decider",
         )
-        
-        searchPDF = tcdk.SearchablePDF(
-            self,
-            f"{workflow_name}-SearchablePDF"
-        )
+
+        searchPDF = tcdk.SearchablePDF(self,
+                                       f"{workflow_name}-SearchablePDF",
+                                       lambda_memory_mb=10240,
+                                       lambda_timeout=900)
 
         textract_async_task = tcdk.TextractGenericAsyncSfnTask(
             self,

@@ -15,6 +15,8 @@ from textract_cdk_stack_samples.lending_workflow import LendingWorkflow
 from textract_cdk_stack_samples.generate_csv_workflow import GenerateCSVWorkflow
 from textract_cdk_stack_samples.pdf_mapper_to_fhir_workflow import PdfMapperToFhirWorkflow
 from textract_cdk_stack_samples.simple_searchPDF import SimpleSearchPDF
+from textract_cdk_stack_samples.open_search_workflow import OpenSearchWorkflow
+from textract_cdk_stack_samples.sub_task_workflow import SubTaskWorkflow
 
 app = cdk.App()
 
@@ -50,5 +52,7 @@ LendingWorkflow(app, "LendingWorkflow")
 GenerateCSVWorkflow(app, "GenerateCSVWorkflow")
 PdfMapperToFhirWorkflow(app, "PdfMapperToFhirWorkflow")
 SimpleSearchPDF(app, "SimpleSearchPDF")
+OpenSearchWorkflow(app, "OpenSearchWorkflow")
+OpenSearchWorkflow(app, "OpenSearchWorkflow2")
 
 app.synth()

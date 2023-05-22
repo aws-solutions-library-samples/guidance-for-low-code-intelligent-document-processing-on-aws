@@ -47,6 +47,7 @@ At the moment there are 10 stacks available:
 * DemoQueries - workflow with calling Textract + Queries for alldocs
 * DocumentSplitterWorkflow - Example of splitting a multi-page document, classifying each page and extraction information depending on the document type for the page
 * LendingWorkflow - Example of using the [Amazon Textract Analyze Lending API](https://docs.aws.amazon.com/textract/latest/dg/API_StartLendingAnalysis.html) to extract information from mortgage document, then generate a CSV and process pages that were marked UNCLASSIFIED by the Analzye Lending API, process them in a separate branch, extract information and generate a CSV as well
+* OpenSearchWorkflow - Example of indexing a large number of files into an OpenSearch service
 
 
 # Sample Workflows
@@ -214,6 +215,25 @@ then open the StepFunction flow.
 ```bash
 aws cloudformation list-exports --query 'Exports[?Name==`LendingWorkflow-StepFunctionFlowLink`].Value' --output text
 ```
+
+* OpenSearchWorkflow
+
+This is an example how to populate an [OpenSearch](https://opensearch.org/) service with data from documents.
+The index pattern includes:
+* content -> the text from the page
+* page -> the number of the page in the document
+* uri -> the source file used for indexing
+* _id -> <origin_document_name>_<page_number> - this means a subsequent processing of the same file-name will overwrite the content
+
+![OpenSearch Workflow](https://amazon-textract-public-content.s3.us-east-2.amazonaws.com/idp-cdk-samples/OpenSearchWorkflowGraph.png)
+
+Deploy using 
+```bash
+cdk deploy OpenSearchWorkflow
+```
+
+The workflow first splits the document into chunks of max 3000 pages, because that is the limit of the Textract service for asynchronous processing.
+Each chunk is then send to [StartDocumentAnalysis](https://docs.aws.amazon.com/textract/latest/dg/API_StartDocumentAnalysis.html) extracing the OCR information from the page. The meta-data added to the context of the StepFunction workflow includes information required for creating the [OpenSearch bulk import](https://opensearch.org/docs/latest/api-reference/document-apis/bulk/) file, including ORIGIN_FILE_NAME and START_PAGE_NUMBER.
 
 
 # Create your own workflows

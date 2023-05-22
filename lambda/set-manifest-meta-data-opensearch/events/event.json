@@ -1,0 +1,12 @@
+{
+    "manifest": {
+        "s3Path": "s3://opensearchworkflow2-opensearchworkflowbucket68e80-11syvzkoj9rg7/textract-output/TENCENT MUSIC ENTERTAINMENT GROUP-p118/2023-05-19T17:52:21.716064/0-0.pdf"
+    },
+    "numberOfPages": 1,
+    "originFileURI": "s3://opensearchworkflow2-opensearchworkflowbucket68e80-11syvzkoj9rg7/uploads/TENCENT MUSIC ENTERTAINMENT GROUP-p118.pdf",
+    "mime": "application/pdf",
+    "textract_result": {
+        "TextractTempOutputJsonPath": "s3://opensearchworkflow2-opensearchworkflowbucket68e80-11syvzkoj9rg7/textract-temp/79ee1132b321818997846eb16f8eb7e4a25e84931d2323cb1f9c7ed94c6a93d2",
+        "TextractOutputJsonPath": "s3://opensearchworkflow2-opensearchworkflowbucket68e80-11syvzkoj9rg7/textract-output/0-02023-05-19T17:52:31.192773/0-0.json"
+    }
+}

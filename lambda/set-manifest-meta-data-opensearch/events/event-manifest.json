@@ -1,0 +1,10 @@
+{
+    "s3Path": "s3://lendingworkflow-textractsimplesyncworkflow5c83a6b-1ieddf0hrnpxc/uploads/lending_console_demo_with_contacts copy.pdf",
+    "metaData": [{
+        "key": "meta_data_key_1",
+        "value": "meta_data_value_1"
+    }, {
+        "key": "meta_data_key_2",
+        "value": "meta_data_value_2"
+    }]
+}

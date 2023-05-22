@@ -1,4 +1,3 @@
-from aws_cdk.aws_opensearchservice import CfnDomainProps
 from constructs import Construct
 import os
 import aws_cdk.aws_s3 as s3
@@ -7,8 +6,7 @@ import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_stepfunctions_tasks as tasks
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
-import aws_cdk.aws_opensearchservice as opensearch
-from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, Aws)
+from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
 import amazon_textract_idp_cdk_constructs as tcdk
 from aws_solutions_constructs.aws_lambda_opensearch import LambdaToOpenSearch
 
@@ -113,13 +111,12 @@ class OpenSearchWorkflow(Stack):
             payload_response_only=True,
             result_path='$.OpenSearchPush')
 
-        LambdaToOpenSearch(
+        lambda_to_opensearch = LambdaToOpenSearch(
             self,
             'OpenSearchResources',
             existing_lambda_obj=lambda_opensearch_push,
             open_search_domain_name='idp-cdk-opensearch',
-            cognito_domain_name='idp-cdk-opensearch' + Aws.ACCOUNT_ID +
-            current_region
+            cognito_domain_name='idp-cdk-opensearch'
             # open_search_domain_props=CfnDomainProps(
             #     cluster_config=opensearch.CfnDomain.ClusterConfigProperty(
             #         instance_type="m5.xlarge.search"), ))
@@ -158,6 +155,7 @@ class OpenSearchWorkflow(Stack):
             lambda_function=set_meta_data_function,
             output_path='$.Payload')
 
+        ## Creating the StepFunction workflow
         async_chain = sfn.Chain \
                          .start(textract_async_task) \
                          .next(textract_async_to_json)
@@ -226,13 +224,21 @@ class OpenSearchWorkflow(Stack):
             value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/")
         CfnOutput(
             self,
-            "StartStepFunctionLambdaLogGroup",
-            value=lambda_step_start_step_function.log_group.log_group_name)
-        CfnOutput(
-            self,
             'StepFunctionFlowLink',
             value=
             f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}"
+        )
+        CfnOutput(
+            self,
+            'OpenSearchDashboard',
+            value=
+            f"https://{lambda_to_opensearch.open_search_domain.attr_domain_endpoint}/states/_dashboards"
+        )
+        CfnOutput(
+            self,
+            'OpenSearchLink',
+            value=
+            f"https://{current_region}.console.aws.amazon.com/aos/home?region={current_region}#/opensearch/domains/{lambda_to_opensearch.open_search_domain.domain_name}"
         )
         # CfnOutput(self,
         #           "EC2_DB_BASTION_PUBLIC_DNS",

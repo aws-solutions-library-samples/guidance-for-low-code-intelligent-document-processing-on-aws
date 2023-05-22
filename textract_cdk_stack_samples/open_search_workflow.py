@@ -50,7 +50,6 @@ class OpenSearchWorkflow(Stack):
             s3_output_bucket=s3_output_bucket,
             s3_temp_output_prefix=s3_temp_output_prefix,
             textract_async_call_max_retries=100,
-            textract_async_call_reserved_concurrency=10,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
             timeout=Duration.hours(24),

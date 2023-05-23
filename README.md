@@ -216,7 +216,7 @@ then open the StepFunction flow.
 aws cloudformation list-exports --query 'Exports[?Name==`LendingWorkflow-StepFunctionFlowLink`].Value' --output text
 ```
 
-* OpenSearchWorkflow
+## OpenSearchWorkflow
 
 This is an example how to populate an [OpenSearch](https://opensearch.org/) service with data from documents.
 The index pattern includes:

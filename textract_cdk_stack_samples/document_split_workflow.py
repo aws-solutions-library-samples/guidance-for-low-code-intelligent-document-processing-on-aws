@@ -50,6 +50,7 @@ class DocumentSplitterWorkflow(Stack):
             s3_output_bucket=s3_output_bucket,
             s3_output_prefix=s3_output_prefix,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+            enable_cloud_watch_metrics_and_dashboard=True,
             lambda_log_level="DEBUG",
             timeout=Duration.hours(24),
             input=sfn.TaskInput.from_object({
@@ -80,33 +81,12 @@ class DocumentSplitterWorkflow(Stack):
             }),
             result_path="$.txt_output_location")
 
-        # spacy_classification_task = tcdk.SpacySfnTask(
-        #     self,
-        #     "Classification",
-        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-        #     lambda_log_level="DEBUG",
-        #     timeout=Duration.hours(24),
-        #     input=sfn.TaskInput.from_object({
-        #         "Token":
-        #         sfn.JsonPath.task_token,
-        #         "ExecutionId":
-        #         sfn.JsonPath.string_at('$$.Execution.Id'),
-        #         "Payload":
-        #         sfn.JsonPath.entire_payload,
-        #     }),
-        #     result_path="$.classification")
-
-        spacy_classification_task = tcdk.ComprehendGenericSyncSfnTask(
+        spacy_classification_task = tcdk.SpacySfnTask(
             self,
             "Classification",
-            s3_output_bucket=document_bucket.bucket_name,
-            s3_output_prefix=s3_comprehend_output_prefix,
-            s3_input_bucket=document_bucket.bucket_name,
-            s3_input_prefix=s3_output_prefix,
-            comprehend_classifier_arn=
-            'arn:aws:comprehend:us-east-1:913165245630:document-classifier-endpoint/asdf',
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
+            timeout=Duration.hours(24),
             input=sfn.TaskInput.from_object({
                 "Token":
                 sfn.JsonPath.task_token,
@@ -116,6 +96,27 @@ class DocumentSplitterWorkflow(Stack):
                 sfn.JsonPath.entire_payload,
             }),
             result_path="$.classification")
+
+        # spacy_classification_task = tcdk.ComprehendGenericSyncSfnTask(
+        #     self,
+        #     "Classification",
+        #     s3_output_bucket=document_bucket.bucket_name,
+        #     s3_output_prefix=s3_comprehend_output_prefix,
+        #     s3_input_bucket=document_bucket.bucket_name,
+        #     s3_input_prefix=s3_output_prefix,
+        #     comprehend_classifier_arn=
+        #     'arn:aws:comprehend:us-east-1:913165245630:document-classifier-endpoint/asdf',
+        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+        #     lambda_log_level="DEBUG",
+        #     input=sfn.TaskInput.from_object({
+        #         "Token":
+        #         sfn.JsonPath.task_token,
+        #         "ExecutionId":
+        #         sfn.JsonPath.string_at('$$.Execution.Id'),
+        #         "Payload":
+        #         sfn.JsonPath.entire_payload,
+        #     }),
+        #     result_path="$.classification")
         configurator_task = tcdk.TextractClassificationConfigurator(
             self,
             f"{workflow_name}-Configurator",

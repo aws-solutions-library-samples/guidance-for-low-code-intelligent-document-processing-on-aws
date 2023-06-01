@@ -6,8 +6,9 @@ import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_stepfunctions_tasks as tasks
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
-from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
 import amazon_textract_idp_cdk_constructs as tcdk
+from uuid import uuid4
+from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
 from aws_solutions_constructs.aws_lambda_opensearch import LambdaToOpenSearch
 
 
@@ -115,7 +116,7 @@ class OpenSearchWorkflow(Stack):
             'OpenSearchResources',
             existing_lambda_obj=lambda_opensearch_push,
             open_search_domain_name='idp-cdk-opensearch',
-            cognito_domain_name='idp-cdk-opensearch'
+            cognito_domain_name=f"idp-cdk-os-{str(uuid4())}"
             # open_search_domain_props=CfnDomainProps(
             #     cluster_config=opensearch.CfnDomain.ClusterConfigProperty(
             #         instance_type="m5.xlarge.search"), ))

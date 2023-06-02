@@ -380,73 +380,6 @@ class PaystubAndW2Comprehend(Stack):
             self,
             "DocumentUploadLocation",
             value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/")
-        CfnOutput(self,
-                  "ComprehendCallLambdaLogGroup",
-                  value=comprehend_sync_task.comprehend_sync_lambda_log_group.
-                  log_group_name)
-        CfnOutput(self,
-                  "TextractSyncLambdaLogGroup",
-                  value=textract_sync_task.textract_sync_lambda_log_group.
-                  log_group_name)
-        CfnOutput(self,
-                  "TextractSyncWithConfigLambdaLogGroup",
-                  value=textract_sync_task_with_config.
-                  textract_sync_lambda_log_group.log_group_name)
-        # CfnOutput(self,
-        #           "DashboardLink",
-        #           valu e=textract_sync_task.dashboard_name)
-        CfnOutput(self,
-                  "StateMachineARN",
-                  value=textract_sync_task.state_machine.state_machine_arn)
-        CfnOutput(self,
-                  "CSVtoAuroraLambdaLogGroup",
-                  value=csv_to_aurora_task.csv_to_aurora_lambda_log_group.
-                  log_group_name)
-        CfnOutput(self,
-                  "GenerateCSVLambdaLogGroup",
-                  value=generate_text.generate_csv_log_group.log_group_name)
-        CfnOutput(self,
-                  "StartStepFunctionLambdaLogGroup",
-                  value=lambda_start_step_function.log_group.log_group_name)
-        CfnOutput(self,
-                  "ComprehendSyncLambdaLogGroup",
-                  value=comprehend_sync_task.comprehend_sync_lambda_log_group.
-                  log_group_name)
-        # CfnOutput(self,
-        #           "ConfiguratorTable",
-        #           value=configurator_task.configuration_table.table_name)
-        CfnOutput(self,
-                  "ConfiguratorFunctionArn",
-                  value=configurator_task.configurator_function.function_arn)
-        CfnOutput(self,
-                  "ConfiguratorFunctionLogGroup",
-                  value=configurator_task.configurator_function_log_group_name)
-        CfnOutput(self,
-                  "DBClusterARN",
-                  value=csv_to_aurora_task.db_cluster.cluster_arn)
-        CfnOutput(self,
-                  "DBClusterSecretARN",
-                  value=typing.cast(rds.ServerlessCluster,
-                                    csv_to_aurora_task.db_cluster).secret.
-                  secret_arn)  #pyright: ignore [reportOptionalMemberAccess]
-        CfnOutput(self,
-                  "DBClusterEndpoint",
-                  value=typing.cast(
-                      rds.ServerlessCluster,
-                      csv_to_aurora_task.db_cluster).cluster_endpoint.hostname
-                  )  #pyright: ignore [reportOptionalMemberAccess]
-        CfnOutput(
-            self,
-            "DBClusterSecurityGroup",
-            value=typing.cast(
-                rds.ServerlessCluster,
-                csv_to_aurora_task.db_cluster)._security_groups[0].
-            security_group_id)  #pyright: ignore [reportOptionalMemberAccess]
-
-        # CfnOutput(self,
-        #           "EC2_DB_BASTION_PUBLIC_DNS",
-        #           value=ec2_db_bastion.instance_public_dns_name
-        #           )  #pyright: ignore [reportOptionalMemberAccess]
         current_region = Stack.of(self).region
         CfnOutput(
             self,
@@ -454,6 +387,3 @@ class PaystubAndW2Comprehend(Stack):
             value=
             f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}"
         )
-        CfnOutput(self,
-                  'ClassifictionConfiguration',
-                  value=configurator_task.configuration_table_name)

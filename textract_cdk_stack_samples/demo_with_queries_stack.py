@@ -179,10 +179,6 @@ class DemoQueries(Stack):
         CfnOutput(self,
                   "StateMachineARN",
                   value=textract_sync_task.state_machine.state_machine_arn)
-        CfnOutput(
-            self,
-            "StartStepFunctionLambdaLogGroup",
-            value=lambda_step_start_step_function.log_group.log_group_name)
         current_region = Stack.of(self).region
         CfnOutput(
             self,

@@ -312,10 +312,6 @@ class DocumentSplitterWorkflow(Stack):
             "DocumentUploadLocation",
             value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/",
             export_name=f"{Aws.STACK_NAME}-DocumentUploadLocation")
-        CfnOutput(
-            self,
-            "StartStepFunctionLambdaLogGroup",
-            value=lambda_step_start_step_function.log_group.log_group_name)
         current_region = Stack.of(self).region
         CfnOutput(
             self,

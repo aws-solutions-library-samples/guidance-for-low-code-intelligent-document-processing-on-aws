@@ -1,5 +1,6 @@
 from constructs import Construct
 import os
+import re
 import aws_cdk.aws_s3 as s3
 import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
@@ -7,7 +8,6 @@ import aws_cdk.aws_stepfunctions_tasks as tasks
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
 import amazon_textract_idp_cdk_constructs as tcdk
-from uuid import uuid4
 from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
 from aws_solutions_constructs.aws_lambda_opensearch import LambdaToOpenSearch
 
@@ -31,6 +31,8 @@ class OpenSearchWorkflow(Stack):
         s3_output_bucket = document_bucket.bucket_name
         workflow_name = "OpenSearchWorkflow"
         current_region = Stack.of(self).region
+        account_id = Stack.of(self).account
+        stack_name = Stack.of(self).stack_name
 
         decider_task = tcdk.TextractPOCDecider(
             self,
@@ -50,7 +52,7 @@ class OpenSearchWorkflow(Stack):
             "TextractAsync",
             s3_output_bucket=s3_output_bucket,
             s3_temp_output_prefix=s3_temp_output_prefix,
-            textract_async_call_max_retries=100,
+            textract_async_call_max_retries=50000,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
             timeout=Duration.hours(24),
@@ -111,12 +113,15 @@ class OpenSearchWorkflow(Stack):
             payload_response_only=True,
             result_path='$.OpenSearchPush')
 
+        cognito_stack_name = re.sub('[^a-zA-Z0-9-]', '',
+                                    f"{stack_name}").lower()[:30]
         lambda_to_opensearch = LambdaToOpenSearch(
             self,
             'OpenSearchResources',
             existing_lambda_obj=lambda_opensearch_push,
             open_search_domain_name='idp-cdk-opensearch',
-            cognito_domain_name=f"idp-cdk-os-{str(uuid4())}"
+            cognito_domain_name=
+            f"{cognito_stack_name}-{account_id}-{current_region}"
             # open_search_domain_props=CfnDomainProps(
             #     cluster_config=opensearch.CfnDomain.ClusterConfigProperty(
             #         instance_type="m5.xlarge.search"), ))
@@ -240,7 +245,10 @@ class OpenSearchWorkflow(Stack):
             value=
             f"https://{current_region}.console.aws.amazon.com/aos/home?region={current_region}#/opensearch/domains/{lambda_to_opensearch.open_search_domain.domain_name}"
         )
-        # CfnOutput(self,
-        #           "EC2_DB_BASTION_PUBLIC_DNS",
-        #           value=ec2_db_bastion.instance_public_dns_name
-        #           )  #pyright: ignore [reportOptionalMemberAccess]
+        # Link to UserPool
+        CfnOutput(
+            self,
+            'CognitoUserPoolLink',
+            value=
+            f"https://{current_region}.console.aws.amazon.com/cognito/v2/idp/user-pools/{lambda_to_opensearch.user_pool.user_pool_id}/users?region={current_region}"
+        )

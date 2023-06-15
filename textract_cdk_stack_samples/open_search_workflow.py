@@ -25,7 +25,7 @@ class OpenSearchWorkflow(Stack):
         script_location = os.path.dirname(__file__)
         s3_upload_prefix = "uploads"
         s3_output_prefix = "textract-output"
-        s3_txt_output_prefix = "textract-text-output"
+        s3_opensearch_output_prefix = "textract-opensearch-output"
         s3_temp_output_prefix = "textract-temp"
 
         # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
@@ -82,7 +82,7 @@ class OpenSearchWorkflow(Stack):
             self,
             "GenerateOpenSearchBatch",
             csv_s3_output_bucket=document_bucket.bucket_name,
-            csv_s3_output_prefix=s3_txt_output_prefix,
+            csv_s3_output_prefix=s3_opensearch_output_prefix,
             lambda_memory_mb=10240,
             output_type='OPENSEARCH_BATCH',
             opensearch_index_name='books-index',

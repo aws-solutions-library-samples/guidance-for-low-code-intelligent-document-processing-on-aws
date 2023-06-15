@@ -54,7 +54,7 @@ LendingWorkflow(app, "LendingWorkflow")
 GenerateCSVWorkflow(app, "GenerateCSVWorkflow")
 PdfMapperToFhirWorkflow(app, "PdfMapperToFhirWorkflow")
 SimpleSearchPDF(app, "SimpleSearchPDF")
-OpenSearchWorkflow(app, "OpenSearchWorkflow2")
+OpenSearchWorkflow(app, "OpenSearchWorkflow")
 TestWorkflow(app, "TestWorkflow")
 
 app.synth()

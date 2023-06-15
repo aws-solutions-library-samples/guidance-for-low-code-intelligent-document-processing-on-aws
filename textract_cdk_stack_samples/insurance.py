@@ -12,7 +12,11 @@ import amazon_textract_idp_cdk_constructs as tcdk
 class InsuranceStack(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
-        super().__init__(scope, construct_id, **kwargs)
+        super().__init__(
+            scope,
+            construct_id,
+            description="IDP CDK constructs sample for A2I (SO9217)",
+            **kwargs)
 
         script_location = os.path.dirname(__file__)
         s3_insurance_prefix = "insurance-uploads"

@@ -15,7 +15,12 @@ from aws_solutions_constructs.aws_lambda_opensearch import LambdaToOpenSearch
 class OpenSearchWorkflow(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
-        super().__init__(scope, construct_id, **kwargs)
+        super().__init__(
+            scope,
+            construct_id,
+            description=
+            "IDP CDK constructs sample for ingesting large number of documents to OpenSearch (SO9217)",
+            **kwargs)
 
         script_location = os.path.dirname(__file__)
         s3_upload_prefix = "uploads"
@@ -53,6 +58,7 @@ class OpenSearchWorkflow(Stack):
             s3_output_bucket=s3_output_bucket,
             s3_temp_output_prefix=s3_temp_output_prefix,
             textract_async_call_max_retries=50000,
+            enable_cloud_watch_metrics_and_dashboard=True,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
             timeout=Duration.hours(24),

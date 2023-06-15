@@ -1,7 +1,7 @@
 aws-cdk-lib>=2.81.0
 constructs>=10.0.0,<11.0.0
 boto3
-amazon-textract-idp-cdk-constructs>=0.0.30
+amazon-textract-idp-cdk-constructs>=0.0.34
 amazon-textract-idp-cdk-manifest>=0.0.1
 aws-solutions-constructs.aws-lambda-opensearch==2.39.0
 cdk-nag

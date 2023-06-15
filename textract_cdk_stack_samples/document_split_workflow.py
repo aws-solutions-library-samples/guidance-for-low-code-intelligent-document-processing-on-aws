@@ -16,14 +16,18 @@ import amazon_textract_idp_cdk_constructs as tcdk
 class DocumentSplitterWorkflow(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
-        super().__init__(scope, construct_id, **kwargs)
+        super().__init__(
+            scope,
+            construct_id,
+            description=
+            "IDP CDK constructs sample for splitting large documents, classifying and extracting informaiton based on the doc type (SO9217)",
+            **kwargs)
 
         script_location = os.path.dirname(__file__)
         s3_upload_prefix = "uploads"
         s3_output_prefix = "textract-output"
         s3_txt_output_prefix = "textract-text-output"
         s3_csv_output_prefix = "textract-csv-output"
-        s3_comprehend_output_prefix = "comprehend_output"
 
         # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
         document_bucket = s3.Bucket(self,

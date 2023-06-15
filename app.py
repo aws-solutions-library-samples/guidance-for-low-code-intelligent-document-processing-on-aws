@@ -9,6 +9,7 @@ from textract_cdk_stack_samples.insurance import InsuranceStack
 from textract_cdk_stack_samples.paystub_w2_spacy import PaystubAndW2Spacy
 from textract_cdk_stack_samples.simple_async_workflow import SimpleAsyncWorkflow
 from textract_cdk_stack_samples.simple_sync_workflow import SimpleSyncWorkflow
+from textract_cdk_stack_samples.most_simple_async_workflow import MostSimpleAsyncWorkflow
 from textract_cdk_stack_samples.simple_async_and_sync_workflow import SimpleSyncAndAsyncWorkflow
 from textract_cdk_stack_samples.document_split_workflow import DocumentSplitterWorkflow
 from textract_cdk_stack_samples.lending_workflow import LendingWorkflow
@@ -16,6 +17,7 @@ from textract_cdk_stack_samples.generate_csv_workflow import GenerateCSVWorkflow
 from textract_cdk_stack_samples.pdf_mapper_to_fhir_workflow import PdfMapperToFhirWorkflow
 from textract_cdk_stack_samples.simple_searchPDF import SimpleSearchPDF
 from textract_cdk_stack_samples.open_search_workflow import OpenSearchWorkflow
+from textract_cdk_stack_samples.test_workflow import TestWorkflow
 
 app = cdk.App()
 
@@ -44,6 +46,7 @@ AnalyzeIDStack(app, "AnalyzeID")
 InsuranceStack(app, "InsuranceStack")
 PaystubAndW2Spacy(app, "PaystubAndW2Spacy")
 SimpleAsyncWorkflow(app, "SimpleAsyncWorkflow")
+MostSimpleAsyncWorkflow(app, "MostSimpleAsyncWorkflow")
 SimpleSyncWorkflow(app, "SimpleSyncWorkflow")
 SimpleSyncAndAsyncWorkflow(app, "SimpleSyncAndAsyncWorkflow")
 DocumentSplitterWorkflow(app, "DocumentSplitterWorkflow")
@@ -52,5 +55,6 @@ GenerateCSVWorkflow(app, "GenerateCSVWorkflow")
 PdfMapperToFhirWorkflow(app, "PdfMapperToFhirWorkflow")
 SimpleSearchPDF(app, "SimpleSearchPDF")
 OpenSearchWorkflow(app, "OpenSearchWorkflow")
+TestWorkflow(app, "TestWorkflow")
 
 app.synth()

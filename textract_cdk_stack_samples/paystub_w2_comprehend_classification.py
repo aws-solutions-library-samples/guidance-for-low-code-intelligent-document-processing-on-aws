@@ -16,7 +16,12 @@ import amazon_textract_idp_cdk_constructs as tcdk
 class PaystubAndW2Comprehend(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
-        super().__init__(scope, construct_id, **kwargs)
+        super().__init__(
+            scope,
+            construct_id,
+            description=
+            "IDP CDK constructs sample for classification, extraction and downstream ingest into RDBMS (SO9217)",
+            **kwargs)
 
         script_location = os.path.dirname(__file__)
         s3_upload_prefix = "uploads"

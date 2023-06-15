@@ -5,64 +5,40 @@ import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
-from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
+from aws_cdk import (CfnOutput, RemovalPolicy, Stack)
 import amazon_textract_idp_cdk_constructs as tcdk
 
 
-class SimpleSyncWorkflow(Stack):
+class TestWorkflow(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(
             scope,
             construct_id,
-            description=
-            "IDP CDK constructs sample for Textract synchronous API calls (SO9217)",
+            description="IDP CDK constructs sample for testing (SO9217)",
             **kwargs)
 
         script_location = os.path.dirname(__file__)
         s3_upload_prefix = "uploads"
-        s3_output_prefix = "textract-output"
+        s3_output_prefix = "doc-splits"
 
         # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
         document_bucket = s3.Bucket(self,
-                                    "TextractSimpleSyncWorkflow",
+                                    "TextractSimpleAsyncWorkflow",
                                     auto_delete_objects=True,
                                     removal_policy=RemovalPolicy.DESTROY)
         s3_output_bucket = document_bucket.bucket_name
-        workflow_name = "SimpleSyncWorkflow"
+        workflow_name = "TestWorkflow"
 
-        decider_task = tcdk.TextractPOCDecider(
+        document_splitter_task = tcdk.DocumentSplitter(
             self,
-            f"{workflow_name}-Decider",
-        )
-
-        textract_sync_task = tcdk.TextractGenericSyncSfnTask(
-            self,
-            "TextractSync",
+            "DocumentSplitter",
             s3_output_bucket=s3_output_bucket,
             s3_output_prefix=s3_output_prefix,
-            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-            lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
-            input=sfn.TaskInput.from_object({
-                "Token":
-                sfn.JsonPath.task_token,
-                "ExecutionId":
-                sfn.JsonPath.string_at('$$.Execution.Id'),
-                "Payload":
-                sfn.JsonPath.entire_payload,
-            }),
-            result_path="$.textract_result")
-
-        number_pages_choice = sfn.Choice(self, 'NumberPagesChoice') \
-            .when(sfn.Condition.and_(sfn.Condition.is_present('$.numberOfPages'),
-                                    sfn.Condition.number_greater_than('$.numberOfPages', 1)),
-                  sfn.Fail(self, "NumberOfPagesFail", error="NumberOfPagesError", cause="number of pages > 1")) \
-            .otherwise(textract_sync_task)
+            max_number_of_pages_per_doc=10)
 
         workflow_chain = sfn.Chain \
-            .start(decider_task) \
-            .next(number_pages_choice)
+            .start(document_splitter_task) \
 
         # GENERIC
         state_machine = sfn.StateMachine(self,
@@ -93,10 +69,6 @@ class SimpleSyncWorkflow(Stack):
             self,
             "DocumentUploadLocation",
             value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/")
-        CfnOutput(
-            self,
-            "StartStepFunctionLambdaLogGroup",
-            value=lambda_step_start_step_function.log_group.log_group_name)
         current_region = Stack.of(self).region
         CfnOutput(
             self,

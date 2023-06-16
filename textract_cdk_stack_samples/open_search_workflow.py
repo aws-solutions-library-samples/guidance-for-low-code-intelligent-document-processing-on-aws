@@ -42,6 +42,7 @@ class OpenSearchWorkflow(Stack):
         decider_task = tcdk.TextractPOCDecider(
             self,
             f"{workflow_name}-Decider",
+            textract_decider_max_retries=10000,
         )
 
         document_splitter_task = tcdk.DocumentSplitter(
@@ -50,7 +51,7 @@ class OpenSearchWorkflow(Stack):
             s3_output_bucket=s3_output_bucket,
             s3_output_prefix=s3_output_prefix,
             max_number_of_pages_per_doc=2500,
-        )
+            textract_document_splitter_max_retries=10000)
 
         textract_async_task = tcdk.TextractGenericAsyncSfnTask(
             self,
@@ -119,6 +120,11 @@ class OpenSearchWorkflow(Stack):
             payload_response_only=True,
             result_path='$.OpenSearchPush')
 
+        task_lambda_opensearch_push.add_retry(
+            max_attempts=100000,
+            errors=['Lambda.TooManyRequestsException'],
+        )
+
         cognito_stack_name = re.sub('[^a-zA-Z0-9-]', '',
                                     f"{stack_name}").lower()[:30]
         lambda_to_opensearch = LambdaToOpenSearch(
@@ -149,6 +155,10 @@ class OpenSearchWorkflow(Stack):
             lambda_function=lambda_opensearch_mapping,
             output_path='$.Payload')
 
+        task_opensearch_mapping.add_retry(
+            max_attempts=100000,
+            errors=['Lambda.TooManyRequestsException'],
+        )
         # Setting meta-data for the SearchIndex
         set_meta_data_function: lambda_.IFunction = lambda_.DockerImageFunction(  #type: ignore
             self,
@@ -165,6 +175,11 @@ class OpenSearchWorkflow(Stack):
             'SetMetaData',
             lambda_function=set_meta_data_function,
             output_path='$.Payload')
+
+        set_meta_data_task.add_retry(
+            max_attempts=10000,
+            errors=['Lambda.TooManyRequestsException'],
+        )
 
         ## Creating the StepFunction workflow
         async_chain = sfn.Chain \

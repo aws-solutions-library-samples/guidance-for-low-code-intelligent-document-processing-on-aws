@@ -57,7 +57,7 @@ def lambda_handler(event, _):
             ]
             manifest.s3_path = f"s3://{s3_bucket}/{s3_key}"
             manifest.queries_config = queries_config
-            manifest.textract_features = ["QUERIES"]
+            manifest.textract_features = ["QUERIES", "TABLES"]
             logger.debug(f"manifest: {tm.IDPManifestSchema().dumps(manifest)}")
 
             response = step_functions_client.start_execution(

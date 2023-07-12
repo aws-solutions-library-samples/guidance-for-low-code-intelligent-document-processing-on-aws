@@ -1,10 +1,7 @@
 from constructs import Construct
-import os
 import aws_cdk.aws_s3 as s3
-import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
-import aws_cdk.aws_lambda as lambda_
-import aws_cdk.aws_iam as iam
+import aws_cdk.aws_lambda_event_sources as eventsources
 from aws_cdk import (CfnOutput, RemovalPolicy, Stack)
 import amazon_textract_idp_cdk_constructs as tcdk
 
@@ -18,7 +15,6 @@ class TestWorkflow(Stack):
             description="IDP CDK constructs sample for testing (SO9217)",
             **kwargs)
 
-        script_location = os.path.dirname(__file__)
         s3_upload_prefix = "uploads"
         s3_output_prefix = "doc-splits"
 
@@ -28,6 +24,12 @@ class TestWorkflow(Stack):
                                     auto_delete_objects=True,
                                     removal_policy=RemovalPolicy.DESTROY)
         s3_output_bucket = document_bucket.bucket_name
+
+        s3_event_source = eventsources.S3EventSource(
+            document_bucket,
+            events=[s3.EventType.OBJECT_CREATED],
+            filters=[s3.NotificationKeyFilter(prefix=s3_upload_prefix)])
+
         workflow_name = "TestWorkflow"
 
         document_splitter_task = tcdk.DocumentSplitter(
@@ -44,25 +46,13 @@ class TestWorkflow(Stack):
         state_machine = sfn.StateMachine(self,
                                          workflow_name,
                                          definition=workflow_chain)
-
-        lambda_step_start_step_function = lambda_.DockerImageFunction(
+        tcdk.SFExecutionsStartThrottle(
             self,
-            "LambdaStartStepFunctionGeneric",
-            code=lambda_.DockerImageCode.from_image_asset(
-                os.path.join(script_location, '../lambda/startstepfunction')),
-            memory_size=128,
-            architecture=lambda_.Architecture.X86_64,
-            environment={"STATE_MACHINE_ARN": state_machine.state_machine_arn})
-
-        lambda_step_start_step_function.add_to_role_policy(
-            iam.PolicyStatement(actions=['states:StartExecution'],
-                                resources=[state_machine.state_machine_arn]))
-
-        document_bucket.add_event_notification(
-            s3.EventType.OBJECT_CREATED,
-            s3n.LambdaDestination(
-                lambda_step_start_step_function),  #type: ignore
-            s3.NotificationKeyFilter(prefix=s3_upload_prefix))
+            "ExecutionThrottle",
+            state_machine_arn=state_machine.state_machine_arn,
+            executions_concurrency_threshold=1,
+            sqs_batch=1,
+            event_source=[s3_event_source])
 
         # OUTPUT
         CfnOutput(

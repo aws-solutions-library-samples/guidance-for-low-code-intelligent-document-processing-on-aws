@@ -2,14 +2,15 @@ from constructs import Construct
 import os
 import re
 import aws_cdk.aws_s3 as s3
-import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_stepfunctions_tasks as tasks
 import aws_cdk.aws_lambda as lambda_
+import aws_cdk.aws_lambda_event_sources as eventsources
 import aws_cdk.aws_iam as iam
 import amazon_textract_idp_cdk_constructs as tcdk
 from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
 from aws_solutions_constructs.aws_lambda_opensearch import LambdaToOpenSearch
+from aws_cdk import aws_opensearchservice as opensearch
 
 
 class OpenSearchWorkflow(Stack):
@@ -28,40 +29,58 @@ class OpenSearchWorkflow(Stack):
         s3_opensearch_output_prefix = "textract-opensearch-output"
         s3_temp_output_prefix = "textract-temp"
 
-        # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
+        #######################################
+        # BEWARE! This is a demo/POC setup
+        # Remove the auto_delete_objects=True and removal_policy=RemovalPolicy.DESTROY
+        # when the documents should remain after deleting the CloudFormation stack!
+        #######################################
+
+        # Create the bucket for the documents and outputs
         document_bucket = s3.Bucket(self,
                                     "OpenSearchWorkflowBucket",
                                     auto_delete_objects=True,
                                     removal_policy=RemovalPolicy.DESTROY)
         s3_output_bucket = document_bucket.bucket_name
+        # get the event source that will be used later to trigger the executions
+        s3_event_source = eventsources.S3EventSource(
+            document_bucket,
+            events=[s3.EventType.OBJECT_CREATED],
+            filters=[s3.NotificationKeyFilter(prefix=s3_upload_prefix)])
+
         workflow_name = "OpenSearchWorkflow"
         current_region = Stack.of(self).region
         account_id = Stack.of(self).account
         stack_name = Stack.of(self).stack_name
 
+        # the decider checks if the document is of valid format and gets the
+        # number of pages
         decider_task = tcdk.TextractPOCDecider(
             self,
             f"{workflow_name}-Decider",
             textract_decider_max_retries=10000,
         )
 
+        # The splitter takes a document and splits into the max_number_of_pages_per_document
+        # This is particulary useful when working with documents that exceed the Textract limits
+        # or when the workflow requires per page processing
         document_splitter_task = tcdk.DocumentSplitter(
             self,
             "DocumentSplitter",
             s3_output_bucket=s3_output_bucket,
             s3_output_prefix=s3_output_prefix,
             max_number_of_pages_per_doc=2500,
+            lambda_log_level="INFO",
             textract_document_splitter_max_retries=10000)
 
+        # Calling Textract asynchronous
         textract_async_task = tcdk.TextractGenericAsyncSfnTask(
             self,
             "TextractAsync",
             s3_output_bucket=s3_output_bucket,
             s3_temp_output_prefix=s3_temp_output_prefix,
             textract_async_call_max_retries=50000,
-            enable_cloud_watch_metrics_and_dashboard=True,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-            lambda_log_level="DEBUG",
+            lambda_log_level="INFO",
             timeout=Duration.hours(24),
             input=sfn.TaskInput.from_object({
                 "Token":
@@ -73,21 +92,25 @@ class OpenSearchWorkflow(Stack):
             }),
             result_path="$.textract_result")
 
+        # Converting the potentially paginated output from Textract to a single JSON file
         textract_async_to_json = tcdk.TextractAsyncToJSON(
             self,
             "TextractAsyncToJSON2",
+            lambda_log_level="INFO",
             s3_output_prefix=s3_output_prefix,
             s3_output_bucket=s3_output_bucket)
 
+        # For the import into OpenSearch, best practice is to use the bulk format
+        # This Lambda creates a bulk for each split from the DocumentSplitter
         generate_open_search_batch = tcdk.TextractGenerateCSV(
             self,
             "GenerateOpenSearchBatch",
             csv_s3_output_bucket=document_bucket.bucket_name,
             csv_s3_output_prefix=s3_opensearch_output_prefix,
+            lambda_log_level="INFO",
             lambda_memory_mb=10240,
             output_type='OPENSEARCH_BATCH',
-            opensearch_index_name='books-index',
-            lambda_log_level="DEBUG",
+            opensearch_index_name='papers-index',
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             input=sfn.TaskInput.from_object({
                 "Token":
@@ -99,6 +122,7 @@ class OpenSearchWorkflow(Stack):
             }),
             result_path="$.opensearch_output_location")
 
+        # Pushing the OpenSearch bulk import file into OpenSearch
         lambda_opensearch_push = lambda_.DockerImageFunction(  #type: ignore
             self,
             "LambdaOpenSearchPush",
@@ -107,10 +131,14 @@ class OpenSearchWorkflow(Stack):
             memory_size=10240,
             timeout=Duration.seconds(900),
             architecture=lambda_.Architecture.X86_64,
-            environment={})
+            environment={"LOG_LEVEL": "INFO"})
 
         lambda_opensearch_push.add_to_role_policy(
-            iam.PolicyStatement(actions=['s3:Get*'], resources=["*"]))
+            iam.PolicyStatement(actions=['s3:Get*', 's3:List*'],
+                                resources=[
+                                    document_bucket.bucket_arn,
+                                    document_bucket.bucket_arn + "/*"
+                                ]))
 
         task_lambda_opensearch_push = tasks.LambdaInvoke(
             self,
@@ -122,9 +150,13 @@ class OpenSearchWorkflow(Stack):
 
         task_lambda_opensearch_push.add_retry(
             max_attempts=100000,
-            errors=['Lambda.TooManyRequestsException'],
+            errors=[
+                'Lambda.TooManyRequestsException',
+                'OpenSearchConnectionTimeout'
+            ],
         )
 
+        # Creating the OpenSearch instances and connect with the OpenSearch push Lambda
         cognito_stack_name = re.sub('[^a-zA-Z0-9-]', '',
                                     f"{stack_name}").lower()[:30]
         lambda_to_opensearch = LambdaToOpenSearch(
@@ -133,12 +165,15 @@ class OpenSearchWorkflow(Stack):
             existing_lambda_obj=lambda_opensearch_push,
             open_search_domain_name='idp-cdk-opensearch',
             cognito_domain_name=
-            f"{cognito_stack_name}-{account_id}-{current_region}"
-            # open_search_domain_props=CfnDomainProps(
-            #     cluster_config=opensearch.CfnDomain.ClusterConfigProperty(
-            #         instance_type="m5.xlarge.search"), ))
+            f"{cognito_stack_name}-{account_id}-{current_region}",
+            open_search_domain_props=opensearch.CfnDomainProps(
+                ebs_options=opensearch.CfnDomain.EBSOptionsProperty(
+                    volume_size=200, volume_type="gp2"))
+            # cluster_config=opensearch.CfnDomain.ClusterConfigProperty(
+            #     instance_type="m5.xlarge.search"), ))
         )
 
+        # The mapping function is just to generate an empty output from the Map state
         lambda_opensearch_mapping: lambda_.IFunction = lambda_.DockerImageFunction(  #type: ignore
             self,
             "LambdaOpenSearchMapping",
@@ -170,6 +205,7 @@ class OpenSearchWorkflow(Stack):
             architecture=lambda_.Architecture.X86_64,
             environment={"LOG_LEVEL": "ERROR"})
 
+        # Setting meta data like the origin filename and the page number for the ingest to OpenSearch
         set_meta_data_task = tasks.LambdaInvoke(
             self,
             'SetMetaData',
@@ -186,8 +222,6 @@ class OpenSearchWorkflow(Stack):
                          .start(textract_async_task) \
                          .next(textract_async_to_json)
 
-        # textract_async_to_json.next(generate_open_search_batch) \
-        #     .next(task_opensearch_mapping)
         textract_async_to_json \
             .next(set_meta_data_task) \
             .next(generate_open_search_batch)
@@ -224,24 +258,16 @@ class OpenSearchWorkflow(Stack):
                                          workflow_name,
                                          definition=workflow_chain)
 
-        lambda_step_start_step_function = lambda_.DockerImageFunction(
+        # The StartThrottle triggers based on event_source (in this case S3 OBJECT_CREATED)
+        # and handles all the complexity of making sure the limits or bottlenecks are not exceeded
+        tcdk.SFExecutionsStartThrottle(
             self,
-            "LambdaStartStepFunctionGeneric",
-            code=lambda_.DockerImageCode.from_image_asset(
-                os.path.join(script_location, '../lambda/startstepfunction')),
-            memory_size=128,
-            architecture=lambda_.Architecture.X86_64,
-            environment={"STATE_MACHINE_ARN": state_machine.state_machine_arn})
-
-        lambda_step_start_step_function.add_to_role_policy(
-            iam.PolicyStatement(actions=['states:StartExecution'],
-                                resources=[state_machine.state_machine_arn]))
-
-        document_bucket.add_event_notification(
-            s3.EventType.OBJECT_CREATED,
-            s3n.LambdaDestination(
-                lambda_step_start_step_function),  #type: ignore
-            s3.NotificationKeyFilter(prefix=s3_upload_prefix))
+            "ExecutionThrottle",
+            state_machine_arn=state_machine.state_machine_arn,
+            executions_concurrency_threshold=550,
+            sqs_batch=10,
+            lambda_log_level="ERROR",
+            event_source=[s3_event_source])
 
         # OUTPUT
         CfnOutput(

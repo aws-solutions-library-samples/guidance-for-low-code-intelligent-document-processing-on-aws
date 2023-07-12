@@ -7,7 +7,7 @@ import os
 import boto3
 import json
 from typing import Tuple
-from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
+from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth, ConnectionTimeout
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,10 @@ class ErrorInBulkImport(Exception):
     pass
 
 
+class OpenSearchConnectionTimeout(Exception):
+    pass
+
+
 def lambda_handler(event, _):
     """This Lambda requires the DOMAIN_ENDPOINT and the input file in the event at
     event["opensearch_output_location"]["TextractOutputCSVPath"])
@@ -58,18 +62,22 @@ def lambda_handler(event, _):
     auth = AWSV4SignerAuth(credentials, region)
 
     response = ""
-    client = OpenSearch(hosts=[{
-        'host': domain_endpoint,
-        'port': int(domain_port)
-    }],
-                        http_auth=auth,
-                        use_ssl=True,
-                        verify_certs=True,
-                        connection_class=RequestsHttpConnection)
+    try:
+        client = OpenSearch(hosts=[{
+            'host': domain_endpoint,
+            'port': int(domain_port)
+        }],
+                            http_auth=auth,
+                            use_ssl=True,
+                            verify_certs=True,
+                            connection_class=RequestsHttpConnection)
 
-    document = get_file_from_s3(s3_path=event["opensearch_output_location"]
-                                ["TextractOutputCSVPath"]).decode('utf-8')
-    response = client.bulk(body=document)
+        document = get_file_from_s3(s3_path=event["opensearch_output_location"]
+                                    ["TextractOutputCSVPath"]).decode('utf-8')
+        response = client.bulk(body=document)
+    except ConnectionTimeout as ct:
+        raise OpenSearchConnectionTimeout(ct)
+
     logger.error(response)
 
     if response['errors']:

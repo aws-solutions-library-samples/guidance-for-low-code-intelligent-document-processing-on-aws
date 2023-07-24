@@ -4,6 +4,7 @@ import aws_cdk.aws_s3 as s3
 import aws_cdk.aws_rds as rds
 import aws_cdk.aws_ec2 as ec2
 import aws_cdk.aws_s3_notifications as s3n
+import aws_cdk.aws_lambda_event_sources as eventsources
 import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_stepfunctions_tasks as tasks
 import aws_cdk.aws_lambda as lambda_

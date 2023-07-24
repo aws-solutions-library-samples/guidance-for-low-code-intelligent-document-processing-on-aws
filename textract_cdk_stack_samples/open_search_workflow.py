@@ -7,8 +7,9 @@ import aws_cdk.aws_stepfunctions_tasks as tasks
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_lambda_event_sources as eventsources
 import aws_cdk.aws_iam as iam
+import urllib.parse
 import amazon_textract_idp_cdk_constructs as tcdk
-from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
+from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, Aws, Fn)
 from aws_solutions_constructs.aws_lambda_opensearch import LambdaToOpenSearch
 from aws_cdk import aws_opensearchservice as opensearch
 
@@ -260,7 +261,7 @@ class OpenSearchWorkflow(Stack):
 
         # The StartThrottle triggers based on event_source (in this case S3 OBJECT_CREATED)
         # and handles all the complexity of making sure the limits or bottlenecks are not exceeded
-        tcdk.SFExecutionsStartThrottle(
+        sf_executions_start_throttle = tcdk.SFExecutionsStartThrottle(
             self,
             "ExecutionThrottle",
             state_machine_arn=state_machine.state_machine_arn,
@@ -269,22 +270,41 @@ class OpenSearchWorkflow(Stack):
             lambda_log_level="ERROR",
             event_source=[s3_event_source])
 
+        queue_url_urlencoded = ""
+        if sf_executions_start_throttle.document_queue:
+            # urlencode the SQS Queue link, otherwise the deep linking does not work properly.
+            queue_url_urlencoded = Fn.join(
+                "%2F",
+                Fn.split(
+                    '/',
+                    Fn.join(
+                        "%3A",
+                        Fn.split(
+                            ':', sf_executions_start_throttle.document_queue.
+                            queue_url))))
         # OUTPUT
         CfnOutput(
             self,
             "DocumentUploadLocation",
-            value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/")
+            value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/",
+            export_name=f"{Aws.STACK_NAME}-DocumentUploadLocation")
         CfnOutput(
             self,
             'StepFunctionFlowLink',
             value=
             f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}"
+        ),
+        CfnOutput(
+            self,
+            'DocumentQueueLink',
+            value=
+            f"https://{current_region}.console.aws.amazon.com/sqs/v2/home?region={current_region}#/queues/{queue_url_urlencoded}"  #type: ignore
         )
         CfnOutput(
             self,
             'OpenSearchDashboard',
             value=
-            f"https://{lambda_to_opensearch.open_search_domain.attr_domain_endpoint}/states/_dashboards"
+            f"https://{lambda_to_opensearch.open_search_domain.attr_domain_endpoint}/_dashboards"
         )
         CfnOutput(
             self,

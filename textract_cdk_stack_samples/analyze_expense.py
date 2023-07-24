@@ -1,10 +1,8 @@
 from constructs import Construct
 import os
 import aws_cdk.aws_s3 as s3
-import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
-import aws_cdk.aws_lambda as lambda_
-import aws_cdk.aws_iam as iam
+import aws_cdk.aws_lambda_event_sources as eventsources
 from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
 import amazon_textract_idp_cdk_constructs as tcdk
 
@@ -19,7 +17,6 @@ class AnalyzeExpenseStack(Stack):
             "IDP CDK constructs sample for Textract AnalyzeExpense (SO9217)",
             **kwargs)
 
-        script_location = os.path.dirname(__file__)
         s3_expense_prefix = "expense-uploads"
         s3_output_prefix = "textract-output"
 
@@ -30,6 +27,12 @@ class AnalyzeExpenseStack(Stack):
             auto_delete_objects=True,
             removal_policy=RemovalPolicy.DESTROY,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL)
+
+        # get the event source that will be used later to trigger the executions
+        s3_event_source = eventsources.S3EventSource(
+            document_bucket,
+            events=[s3.EventType.OBJECT_CREATED],
+            filters=[s3.NotificationKeyFilter(prefix=s3_expense_prefix)])
 
         # EXPENSE
         decider_task_expense = tcdk.TextractPOCDecider(
@@ -64,24 +67,16 @@ class AnalyzeExpenseStack(Stack):
                                          f'Expense',
                                          definition=workflow_chain_expense)
 
-        lambda_step_start_step_function_expense = lambda_.DockerImageFunction(
+        # The StartThrottle triggers based on event_source (in this case S3 OBJECT_CREATED)
+        # and handles all the complexity of making sure the limits or bottlenecks are not exceeded
+        tcdk.SFExecutionsStartThrottle(
             self,
-            "LambdaStartStepFunctionExpense",
-            code=lambda_.DockerImageCode.from_image_asset(
-                os.path.join(script_location, '../lambda/startstepfunction')),
-            memory_size=128,
-            architecture=lambda_.Architecture.X86_64,
-            environment={"STATE_MACHINE_ARN": state_machine.state_machine_arn})
-
-        lambda_step_start_step_function_expense.add_to_role_policy(
-            iam.PolicyStatement(actions=['states:StartExecution'],
-                                resources=[state_machine.state_machine_arn]))
-
-        document_bucket.add_event_notification(
-            s3.EventType.OBJECT_CREATED,
-            s3n.LambdaDestination(
-                lambda_step_start_step_function_expense),  #type: ignore
-            s3.NotificationKeyFilter(prefix=s3_expense_prefix))
+            "ExecutionThrottle",
+            state_machine_arn=state_machine.state_machine_arn,
+            executions_concurrency_threshold=550,
+            sqs_batch=10,
+            lambda_log_level="ERROR",
+            event_source=[s3_event_source])
 
         # OUTPUT
         CfnOutput(

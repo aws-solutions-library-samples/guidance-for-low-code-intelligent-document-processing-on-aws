@@ -77,8 +77,7 @@ def lambda_handler(event, _):
         response = client.bulk(body=document)
     except ConnectionTimeout as ct:
         raise OpenSearchConnectionTimeout(ct)
-
-    logger.error(response)
+    logger.debug(response)
 
     if response['errors']:
         logger.error(f"errors {response}")

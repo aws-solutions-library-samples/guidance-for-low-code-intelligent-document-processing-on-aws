@@ -168,28 +168,28 @@ class DocumentSplitterWorkflow(Stack):
                       "Vpc",
                       ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"))
 
-        rds_aurora_serverless = tcdk.RDSAuroraServerless(self,
-                                                         "RDSAuroraServerless",
-                                                         vpc=vpc)
+        # rds_aurora_serverless = tcdk.RDSAuroraServerless(self,
+        #                                                  "RDSAuroraServerless",
+        #                                                  vpc=vpc)
 
-        csv_to_aurora_task = tcdk.CSVToAuroraTask(
-            self,
-            "CsvToAurora",
-            db_cluster=rds_aurora_serverless.db_cluster,
-            aurora_security_group=rds_aurora_serverless.aurora_security_group,
-            lambda_security_group=rds_aurora_serverless.lambda_security_group,
-            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
-            lambda_log_level="DEBUG",
-            timeout=Duration.hours(24),
-            input=sfn.TaskInput.from_object({
-                "Token":
-                sfn.JsonPath.task_token,
-                "ExecutionId":
-                sfn.JsonPath.string_at('$$.Execution.Id'),
-                "Payload":
-                sfn.JsonPath.entire_payload
-            }),
-            result_path="$.textract_result")
+        # csv_to_aurora_task = tcdk.CSVToAuroraTask(
+        #     self,
+        #     "CsvToAurora",
+        #     db_cluster=rds_aurora_serverless.db_cluster,
+        #     aurora_security_group=rds_aurora_serverless.aurora_security_group,
+        #     lambda_security_group=rds_aurora_serverless.lambda_security_group,
+        #     integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+        #     lambda_log_level="DEBUG",
+        #     timeout=Duration.hours(24),
+        #     input=sfn.TaskInput.from_object({
+        #         "Token":
+        #         sfn.JsonPath.task_token,
+        #         "ExecutionId":
+        #         sfn.JsonPath.string_at('$$.Execution.Id'),
+        #         "Payload":
+        #         sfn.JsonPath.entire_payload
+        #     }),
+        #     result_path="$.textract_result")
 
         lambda_generate_classification_mapping: lambda_.IFunction = lambda_.DockerImageFunction(  #type: ignore
             self,
@@ -265,8 +265,8 @@ class DocumentSplitterWorkflow(Stack):
 
         configurator_task.next(textract_queries_sync_task) \
             .next(generate_csv) \
-            .next(csv_to_aurora_task) \
             .next(task_generate_classification_mapping)
+            # .next(csv_to_aurora_task) \
 
         map.iterator(textract_sync_task)
 
@@ -320,11 +320,11 @@ class DocumentSplitterWorkflow(Stack):
         #           "EC2_DB_BASTION_PUBLIC_DNS",
         #           value=ec2_db_bastion.instance_public_dns_name
         #           )  #pyright: ignore [reportOptionalMemberAccess]
-        CfnOutput(self,
-                  "DBClusterARN",
-                  value=csv_to_aurora_task.db_cluster.cluster_arn)
-        CfnOutput(self,
-                  "DBClusterSecretARN",
-                  value=typing.cast(rds.ServerlessCluster,
-                                    csv_to_aurora_task.db_cluster).secret.
-                  secret_arn)  #pyright: ignore [reportOptionalMemberAccess]
+        # CfnOutput(self,
+        #           "DBClusterARN",
+        #           value=csv_to_aurora_task.db_cluster.cluster_arn)
+        # CfnOutput(self,
+        #           "DBClusterSecretARN",
+        #           value=typing.cast(rds.ServerlessCluster,
+        #                             csv_to_aurora_task.db_cluster).secret.
+        #           secret_arn)  #pyright: ignore [reportOptionalMemberAccess]

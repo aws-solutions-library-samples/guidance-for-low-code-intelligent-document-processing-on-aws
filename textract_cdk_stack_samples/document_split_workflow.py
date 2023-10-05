@@ -176,6 +176,7 @@ class DocumentSplitterWorkflow(Stack):
             self,
             "CsvToAurora",
             db_cluster=rds_aurora_serverless.db_cluster,
+            vpc=vpc,
             aurora_security_group=rds_aurora_serverless.aurora_security_group,
             lambda_security_group=rds_aurora_serverless.lambda_security_group,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,

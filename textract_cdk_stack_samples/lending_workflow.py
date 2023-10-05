@@ -19,9 +19,8 @@ class LendingWorkflow(Stack):
         super().__init__(
             scope,
             construct_id,
-            description=
-            "IDP CDK constructs sample for Textract AnalyzeLending and subsequent CSV generation with extraction path for AnalzyeLending unknown doc-types (SO9217)",
-            **kwargs)
+            description="IDP CDK constructs sample for Textract AnalyzeLending and \
+                subsequent CSV generation with extraction path for AnalzyeLending unknown doc-types (SO9217)", **kwargs)
 
         script_location = os.path.dirname(__file__)
         s3_upload_prefix = "uploads"

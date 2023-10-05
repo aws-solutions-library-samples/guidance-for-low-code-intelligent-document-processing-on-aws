@@ -18,6 +18,7 @@ from textract_cdk_stack_samples.pdf_mapper_to_fhir_workflow import PdfMapperToFh
 from textract_cdk_stack_samples.simple_searchPDF import SimpleSearchPDF
 from textract_cdk_stack_samples.open_search_workflow import OpenSearchWorkflow
 from textract_cdk_stack_samples.test_workflow import TestWorkflow
+from textract_cdk_stack_samples.bedrock_idp_workflow import BedrockIDPWorkflow
 
 app = cdk.App()
 
@@ -31,7 +32,7 @@ PaystubAndW2Comprehend(
     # Uncomment the next line to specialize this stack for the AWS Account
     # and Region that are implied by the current CLI configuration.
 
-    #env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION')),
+    # env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION')),
 
     # Uncomment the next line if you know exactly what Account and Region you
     # want to deploy the stack to. */
@@ -55,6 +56,7 @@ GenerateCSVWorkflow(app, "GenerateCSVWorkflow")
 PdfMapperToFhirWorkflow(app, "PdfMapperToFhirWorkflow")
 SimpleSearchPDF(app, "SimpleSearchPDF")
 OpenSearchWorkflow(app, "OpenSearchWorkflow")
+BedrockIDPWorkflow(app, "BedrockIDPWorkflow")
 TestWorkflow(app, "TestWorkflow")
 
 app.synth()

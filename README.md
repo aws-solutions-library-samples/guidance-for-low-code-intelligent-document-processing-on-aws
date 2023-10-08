@@ -235,6 +235,51 @@ cdk deploy OpenSearchWorkflow
 The workflow first splits the document into chunks of max 3000 pages, because that is the limit of the Textract service for asynchronous processing.
 Each chunk is then send to [StartDocumentAnalysis](https://docs.aws.amazon.com/textract/latest/dg/API_StartDocumentAnalysis.html) extracing the OCR information from the page. The meta-data added to the context of the StepFunction workflow includes information required for creating the [OpenSearch bulk import](https://opensearch.org/docs/latest/api-reference/document-apis/bulk/) file, including ORIGIN_FILE_NAME and START_PAGE_NUMBER.
 
+# GenAI/LLM integration through Bedrock
+
+```deploy BedrockIDP2Workflow --require-approval never```
+
+There is one new function in the process calling Bedrock inference, implemented by the lambda/bedrock source.
+It reads a prompt from DDB based on either the classifcation result or is deployed with a fixed key that is always used when calling this lambda function. In the sample this used for zero-shot classification.
+The prompt is a jinja2 template and supports the {{ document_text }} placeholder for now. The document_text is the output from the generate_text task.
+
+    """
+    Reads a jinja2 template from the DDB table passed in as BEDROCK_CONFIGURATION_TABLE
+    if the FIXED_KEY is empty, it takes the classification from the context at event["classification"]["documentType"]  to find the prompt and executes that.
+    if the FIXED_KEY is set, it will always execute that prompt, which is useful for classification
+    """
+
+Here is a sample how to setup the environment.
+First set the BEDROCK_TABLE_NAME for the subsequent CLI commands. This is just for clarity.
+
+```bash
+export BEDROCK_TABLE_NAME=$(aws cloudformation list-exports --query 'Exports[?Name==`BedrockIDP2Workflow-BedrockConfigurationTableName`].Value' --output text)
+```
+
+here we set the zero shot classifier
+
+```bash
+aws dynamodb put-item \
+    --table-name ${BEDROCK_TABLE_NAME} \
+    --item '{"id": {"S": "CLASSIFICATION"}, "p": {"S": "given the following classifications: {\"AWS_PAYSTUBS\": a paystub, \"AWS_BANK_STATEMENTS\": a bank statement, \"OTHER\": something else} return only a JSON in the following format {\"CLASSIFCIATION\": result} and do not output any other text than the JSON. --- {{ document_text }} ---"}}'
+```
+
+and here a simple sample prompt for paystubs
+```bash
+  aws dynamodb put-item \
+    --table-name ${BEDROCK_TABLE_NAME} \
+    --item '{"id": {"S": "AWS_PAYSTUBS"}, "p": {"S": "as an information extraction process, what is the ytd gross pay for the following document. Only use information from the document and only JSON in the form of {\"YTD_GROSS_PAY\": value} --- {{ document_text }} ---"}}'
+```
+
+and here a more complex one for bank statements
+```bash
+aws dynamodb put-item \
+    --table-name ${BEDROCK_TABLE_NAME} \
+    --item '{"id": {"S": "AWS_BANK_STATEMENTS"}, "p": {"S": "Given this document --- {{ document_text }} --- As a information extraction process, export the transaction table in CSV from format with the column names \"date\" in the format \"YYYY-MM-DD\", \"description\", \"credit\", \"debit\". Only export the CSV information and no explaining text. Only use information from the document and do not output any lines without credit or debit information. Do not print out \"Here is the extracted CSV data from the bank statement document\" and do not print out the back ticks. DELIMITER is comma and QUOTE CHARACTER is double quotes. "}}'
+```
+
+Best to try out the prompts with some sample document text in the AWS Web Console Bedrock Playground and then convert move them to the DynamoDB table.
+
 
 # Create your own workflows
 

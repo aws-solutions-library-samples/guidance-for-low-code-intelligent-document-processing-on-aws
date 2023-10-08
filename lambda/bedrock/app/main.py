@@ -12,6 +12,7 @@ from uuid import uuid4
 from typing import Tuple
 from pynamodb.models import Model
 from pynamodb.attributes import UnicodeAttribute
+from pynamodb.exceptions import DoesNotExist
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +68,7 @@ class BedrockPromptConfig(Model):
 def call_bedrock(prompt_data, model_id):
     # formatting body for claude
     body = json.dumps(
-        {"prompt": "Human:" + prompt_data + "\nAssistant:", "max_tokens_to_sample": 8191}
+        {"prompt": "Human:" + prompt_data + "\nAssistant:", "max_tokens_to_sample": 8191, "temperature": 0}
     )
     accept = "application/json"
     contentType = "application/json"
@@ -118,7 +119,10 @@ def lambda_handler(event, _):
                 )
 
         # load from DDB
-        ddb_prompt_entry: BedrockPromptConfig = BedrockPromptConfig.get(ddb_key)
+        try:
+            ddb_prompt_entry: BedrockPromptConfig = BedrockPromptConfig.get(ddb_key)
+        except DoesNotExist:
+            raise ValueError(f"no DynamoDB item with key: '{ddb_key}' was found")
         prompt_template = ddb_prompt_entry.prompt_template
 
         # load text document from S3
@@ -145,12 +149,17 @@ def lambda_handler(event, _):
         response = call_bedrock(
             prompt_data=prompt, model_id=bedrock_model_id
         )
+        if "completion" in response:
+            output_text = response['completion']
+        else:
+            output_text = ""
+
         logger.debug(response)
 
         s3_filename, _ = os.path.splitext(os.path.basename(manifest.s3_path))
         output_bucket_key = s3_output_prefix + "/" + s3_filename + str(uuid4()) + ".json"
         s3.put_object(Body=bytes(
-            json.dumps(response, indent=4).encode('UTF-8')),
+            output_text.encode('UTF-8')),
                     Bucket=s3_output_bucket,
                     Key=output_bucket_key)
 
@@ -166,4 +175,5 @@ def lambda_handler(event, _):
     except bedrock_rt.exceptions.ServiceQuotaExceededException as sqe:
         raise ServiceQuotaExceededException(sqe)
 
-    return {"bedrock_output": f"s3://{s3_output_bucket}/{output_bucket_key}"}
+    event['bedrock_output'] = f"s3://{s3_output_bucket}/{output_bucket_key}"
+    return event

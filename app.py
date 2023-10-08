@@ -19,6 +19,7 @@ from textract_cdk_stack_samples.simple_searchPDF import SimpleSearchPDF
 from textract_cdk_stack_samples.open_search_workflow import OpenSearchWorkflow
 from textract_cdk_stack_samples.test_workflow import TestWorkflow
 from textract_cdk_stack_samples.bedrock_idp_workflow import BedrockIDPWorkflow
+from textract_cdk_stack_samples.bedrock_idp_2_workflow import BedrockIDP2Workflow
 
 app = cdk.App()
 
@@ -57,6 +58,7 @@ PdfMapperToFhirWorkflow(app, "PdfMapperToFhirWorkflow")
 SimpleSearchPDF(app, "SimpleSearchPDF")
 OpenSearchWorkflow(app, "OpenSearchWorkflow")
 BedrockIDPWorkflow(app, "BedrockIDPWorkflow")
+BedrockIDP2Workflow(app, "BedrockIDP2Workflow")
 TestWorkflow(app, "TestWorkflow")
 
 app.synth()

@@ -488,10 +488,10 @@ class BedrockIDP2Workflow(Stack):
                 sfn.Condition.string_equals("$.classification.documentType", "AWS_BANK_STATEMENTS"),
                 bedrock_idp_extraction_task
             )
-            # .when(
-            #     sfn.Condition.string_equals("$.classification.documentType", "AWS_PAYSTUBS"),
-            #     bedrock_idp_extraction_task
-            # )
+            .when(
+                sfn.Condition.string_equals("$.classification.documentType", "AWS_PAYSTUBS"),
+                bedrock_idp_extraction_task
+            )
             .otherwise(sfn.Pass(self, "No processing"))
         )
 

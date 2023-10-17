@@ -52,9 +52,11 @@ def lambda_handler(event, _):
         )
 
     document_text = get_file_from_s3(s3_path=document_text_path).decode('utf-8')
+    lines = document_text.splitlines()[1:-1]
+    result_str = '\n'.join(lines)
     # expect format
     # {"CLASSIFICATION": "VALUE"}
-    classification_json = json.loads(document_text)
+    classification_json = json.loads(result_str)
     document_type = classification_json['CLASSIFICATION']
 
     event.setdefault('classification', {})['documentType'] = document_type

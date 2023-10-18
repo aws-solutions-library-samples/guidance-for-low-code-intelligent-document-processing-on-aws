@@ -58,6 +58,7 @@ class SimpleAsyncWorkflow(Stack):
         textract_async_to_json = tcdk.TextractAsyncToJSON(
             self,
             "AsyncToJSON",
+            lambda_memory=3008,
             s3_output_prefix=s3_output_prefix,
             s3_output_bucket=s3_output_bucket)
 

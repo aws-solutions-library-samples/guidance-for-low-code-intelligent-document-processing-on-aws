@@ -9,7 +9,7 @@ from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, CfnParameter)
 import amazon_textract_idp_cdk_constructs as tcdk
 
 
-class SimpleAsyncWorkflowAIM306(Stack):
+class SimpleAsyncWorkflowLayout(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(
@@ -57,17 +57,23 @@ class SimpleAsyncWorkflowAIM306(Stack):
                 sfn.JsonPath.entire_payload,
             }),
             result_path="$.textract_result")
-
-        # This is where I think the JSON to Layout Linearizer can go
-        # textract_async_to_layout = tcdk.TextractAsyncToTextLayout(
+        
+        textract_async_to_json = tcdk.TextractAsyncToJSON(
+            self,
+            "AsyncToJSON",
+            lambda_memory_mb=1024,
+            s3_output_prefix=s3_output_prefix,
+            s3_output_bucket=s3_output_bucket)
+        
+        # TBD Linearizer
+        # textract_linearized_layout = tcdk.TextractAsyncJSONToLayout(
         #     self,
         #     "AsyncToJSON",
+        #     lambda_memory_mb=1024,
         #     s3_output_prefix=s3_output_prefix,
         #     s3_output_bucket=s3_output_bucket)
 
-        async_chain = sfn.Chain.start(textract_async_task)        
-        # .next(
-        #     textract_async_to_layout)
+        async_chain = sfn.Chain.start(textract_async_task).next(textract_async_to_json) #.next(textract_linearized_layout)
 
         workflow_chain = sfn.Chain \
             .start(decider_task) \

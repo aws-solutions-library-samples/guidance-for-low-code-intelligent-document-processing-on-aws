@@ -63,7 +63,7 @@ class SimpleAsyncWorkflowLayout(Stack):
             "AsyncToJSON",
             lambda_memory_mb=1024,
             s3_output_prefix=s3_output_prefix,
-            s3_output_bucket=s3_output_bucket)
+            s3_output_bucket=s3_output_bucket.value_as_string)
         
         # TBD Linearizer
         # textract_linearized_layout = tcdk.TextractAsyncJSONToLayout(
@@ -88,7 +88,7 @@ class SimpleAsyncWorkflowLayout(Stack):
             self,
             "LambdaStartStepFunctionGeneric",
             code=lambda_.DockerImageCode.from_image_asset(
-                os.path.join(script_location, '../lambda/startstepfunction')),
+                os.path.join(script_location, '../lambda/start_with_all_features')),
             memory_size=128,
             architecture=lambda_.Architecture.X86_64,
             environment={"STATE_MACHINE_ARN": state_machine.state_machine_arn})

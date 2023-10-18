@@ -5,7 +5,7 @@ import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_lambda as lambda_
 import aws_cdk.aws_iam as iam
-from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration)
+from aws_cdk import (CfnOutput, RemovalPolicy, Stack, Duration, CfnParameter)
 import amazon_textract_idp_cdk_constructs as tcdk
 
 
@@ -24,12 +24,15 @@ class SimpleAsyncWorkflowAIM306(Stack):
         s3_output_prefix = "textract-output"
         s3_temp_output_prefix = "textract-temp-output"
 
-        # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
-        document_bucket = s3.Bucket(self,
-                                    "TextractSimpleAsyncWorkflow",
-                                    auto_delete_objects=True,
-                                    removal_policy=RemovalPolicy.DESTROY)
-        s3_output_bucket = document_bucket.bucket_name
+        s3_output_bucket = CfnParameter(self,
+                                       "uploadBucketName",
+                                       type="String",
+                                       description="S3 bucket where uploaded files will be stored.")
+        
+        # We adopt the bucket created from the outer Cloudformation Stack for SageMaker Studio
+        document_bucket = s3.Bucket.from_bucket_name(self,
+                                                     "TextractSimpleAsyncWorkflow",
+                                                     bucket_name=s3_output_bucket.value_as_string)        
         workflow_name = "SimpleAsyncWorkflow"
 
         decider_task = tcdk.TextractPOCDecider(
@@ -40,7 +43,7 @@ class SimpleAsyncWorkflowAIM306(Stack):
         textract_async_task = tcdk.TextractGenericAsyncSfnTask(
             self,
             "TextractAsync",
-            s3_output_bucket=s3_output_bucket,
+            s3_output_bucket=s3_output_bucket.value_as_string,
             s3_temp_output_prefix=s3_temp_output_prefix,
             integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
             lambda_log_level="DEBUG",
@@ -55,14 +58,16 @@ class SimpleAsyncWorkflowAIM306(Stack):
             }),
             result_path="$.textract_result")
 
-        textract_async_to_json = tcdk.TextractAsyncToJSON(
-            self,
-            "AsyncToJSON",
-            s3_output_prefix=s3_output_prefix,
-            s3_output_bucket=s3_output_bucket)
+        # This is where I think the JSON to Layout Linearizer can go
+        # textract_async_to_layout = tcdk.TextractAsyncToTextLayout(
+        #     self,
+        #     "AsyncToJSON",
+        #     s3_output_prefix=s3_output_prefix,
+        #     s3_output_bucket=s3_output_bucket)
 
-        async_chain = sfn.Chain.start(textract_async_task).next(
-            textract_async_to_json)
+        async_chain = sfn.Chain.start(textract_async_task)        
+        # .next(
+        #     textract_async_to_layout)
 
         workflow_chain = sfn.Chain \
             .start(decider_task) \

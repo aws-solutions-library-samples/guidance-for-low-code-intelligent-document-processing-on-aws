@@ -1,8 +1,6 @@
 from constructs import Construct
 import os
 import aws_cdk.aws_s3 as s3
-import aws_cdk.aws_rds as rds
-import aws_cdk.aws_ec2 as ec2
 import aws_cdk.aws_s3_notifications as s3n
 import aws_cdk.aws_stepfunctions as sfn
 import aws_cdk.aws_stepfunctions_tasks as tasks
@@ -286,7 +284,9 @@ class DocumentSplitterWorkflow(Stack):
         # configurator_task.next(textract_queries_sync_task).next(generate_csv).next(
         #     csv_to_aurora_task
         # ).next(task_generate_classification_mapping)
-        configurator_task.next(textract_queries_sync_task).next(generate_csv).next(task_generate_classification_mapping)
+        configurator_task.next(textract_queries_sync_task).next(generate_csv).next(
+            task_generate_classification_mapping
+        )
 
         map.iterator(textract_sync_task)
 
@@ -296,7 +296,11 @@ class DocumentSplitterWorkflow(Stack):
         # .next(textract_sync_task1) \
 
         # GENERIC
-        state_machine = sfn.StateMachine(self, workflow_name, definition=workflow_chain)
+        state_machine = sfn.StateMachine(
+            self,
+            workflow_name,
+            definition_body=sfn.DefinitionBody.from_chainable(workflow_chain),
+        )
 
         lambda_step_start_step_function = lambda_.DockerImageFunction(
             self,
@@ -337,7 +341,7 @@ class DocumentSplitterWorkflow(Stack):
         CfnOutput(
             self,
             "StepFunctionFlowLink",
-            value=f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}",
+            value=f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}",  # noqa: E501
         )
         # CfnOutput(self,
         #           "EC2_DB_BASTION_PUBLIC_DNS",

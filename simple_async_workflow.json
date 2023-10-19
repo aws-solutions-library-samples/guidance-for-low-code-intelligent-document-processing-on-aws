@@ -1,7 +1,0 @@
-{
-  "SimpleAsyncWorkflowAIM306": {
-    "DocumentUploadLocation": "s3://dummy-aim306-bucket/uploads/",
-    "StepFunctionFlowLink": "https://us-east-1.console.aws.amazon.com/states/home?region=us-east-1#/statemachines/view/arn:aws:states:us-east-1:441894746034:stateMachine:SimpleAsyncWorkflow462ECA3D-78Ofkxfzx1z5",
-    "StartStepFunctionLambdaLogGroup": "/aws/lambda/SimpleAsyncWorkflowAIM306-LambdaStartStepFunctionG-z2T8w6mDX6Cu"
-  }
-}

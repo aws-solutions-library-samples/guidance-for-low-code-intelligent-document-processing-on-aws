@@ -3,7 +3,6 @@ import os
 
 # import typing
 import aws_cdk.aws_s3 as s3
-import aws_cdk.aws_ec2 as ec2
 
 # import aws_cdk.aws_rds as rds
 import aws_cdk.aws_s3_notifications as s3n
@@ -20,7 +19,7 @@ class PaystubAndW2Comprehend(Stack):
         super().__init__(
             scope,
             construct_id,
-            description="IDP CDK constructs sample for classification, extraction and downstream ingest into RDBMS (SO9217)",
+            description="IDP CDK constructs sample for classification, extraction and downstream ingest into RDBMS (SO9217)",   # noqa: E501
             **kwargs,
         )
 
@@ -35,7 +34,7 @@ class PaystubAndW2Comprehend(Stack):
         # VPC
         # vpc = ec2.Vpc.from_lookup(self, 'defaultVPC', is_default=True)
 
-        vpc = ec2.Vpc(self, "Vpc", ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"))
+        # vpc = ec2.Vpc(self, "Vpc", ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"))
 
         # BEWARE! This is a demo/POC setup, remove the auto_delete_objects=True and
         document_bucket = s3.Bucket(
@@ -433,7 +432,11 @@ class PaystubAndW2Comprehend(Stack):
         workflow_chain = sfn.Chain.start(decider_task).next(number_pages_choice)
 
         # GENERIC
-        state_machine = sfn.StateMachine(self, f"PaystubW2", definition=workflow_chain)
+        state_machine = sfn.StateMachine(
+            self,
+            "PaystubW2",
+            definition_body=sfn.DefinitionBody.from_chainable(workflow_chain),
+        )
 
         lambda_start_step_function = lambda_.DockerImageFunction(
             self,
@@ -512,7 +515,7 @@ class PaystubAndW2Comprehend(Stack):
         CfnOutput(
             self,
             "StepFunctionFlowLink",
-            value=f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}",
+            value=f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}",  # noqa: E501
         )
         CfnOutput(
             self,

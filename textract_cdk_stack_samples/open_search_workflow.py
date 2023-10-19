@@ -45,8 +45,17 @@ class OpenSearchWorkflow(Stack):
             auto_delete_objects=False,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
         )
-        nag.NagSuppressions.add_resource_suppressions(document_bucket, suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-S1", reason="no server access log for this demo"))] )
+        nag.NagSuppressions.add_resource_suppressions(
+            document_bucket,
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-S1",
+                        reason="no server access log for this demo",
+                    )
+                )
+            ],
+        )
         s3_output_bucket = document_bucket.bucket_name
         # get the event source that will be used later to trigger the executions
         s3_event_source = eventsources.S3EventSource(
@@ -67,12 +76,32 @@ class OpenSearchWorkflow(Stack):
             f"{workflow_name}-Decider",
             textract_decider_max_retries=10000,
             s3_input_bucket=document_bucket.bucket_name,
-            s3_input_prefix=s3_upload_prefix
+            s3_input_prefix=s3_upload_prefix,
         )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/OpenSearchWorkflow-Decider/TextractDecider/ServiceRole/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM4", reason="using AWSLambdaBasicExecutionRole"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/OpenSearchWorkflow-Decider/TextractDecider/ServiceRole/DefaultPolicy/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM5", reason="wildcard permission is for everything under prefix"))] )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/OpenSearchWorkflow-Decider/TextractDecider/ServiceRole/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM4",
+                        reason="using AWSLambdaBasicExecutionRole",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/OpenSearchWorkflow-Decider/TextractDecider/ServiceRole/DefaultPolicy/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM5",
+                        reason="wildcard permission is for everything under prefix",
+                    )
+                )
+            ],
+        )
 
         # The splitter takes a document and splits into the max_number_of_pages_per_document
         # This is particulary useful when working with documents that exceed the Textract limits
@@ -89,10 +118,30 @@ class OpenSearchWorkflow(Stack):
             textract_document_splitter_max_retries=10000,
         )
 
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/DocumentSplitter/DocumentSplitterFunction/ServiceRole/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM4", reason="using AWSLambdaBasicExecutionRole"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/DocumentSplitter/DocumentSplitterFunction/ServiceRole/DefaultPolicy/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM5", reason="wildcard permission is for everything under prefix"))] )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/DocumentSplitter/DocumentSplitterFunction/ServiceRole/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM4",
+                        reason="using AWSLambdaBasicExecutionRole",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/DocumentSplitter/DocumentSplitterFunction/ServiceRole/DefaultPolicy/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM5",
+                        reason="wildcard permission is for everything under prefix",
+                    )
+                )
+            ],
+        )
 
         # Calling Textract asynchronous
         textract_async_task = tcdk.TextractGenericAsyncSfnTask(
@@ -115,26 +164,123 @@ class OpenSearchWorkflow(Stack):
             ),
             result_path="$.textract_result",
         )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/TextractAsync/TextractTaskTokenTable/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-DDB3", reason="no point-in-time-recovery required for demo"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/TextractAsync/TextractAsyncSNSRole/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM4", reason="following Textract SNS best practices"))])
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/TextractAsync/TextractAsyncSNS/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-SNS3", reason="publisher is only Textract")),
-            (nag.NagPackSuppression(id="AwsSolutions-SNS2", reason="no SNS encryption for demo")) ] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/TextractAsync/TextractAsyncCall/ServiceRole/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM4", reason="using AWSLambdaBasicExecutionRole"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/TextractAsync/TextractAsyncCall/ServiceRole/DefaultPolicy/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM5", reason="access only for bucket and prefix"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/TextractAsync/TextractAsyncSNSFunction/ServiceRole/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM4", reason="using AWSLambdaBasicExecutionRole"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/TextractAsync/TextractAsyncSNSFunction/ServiceRole/DefaultPolicy/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM5", reason="access only for bucket and prefix and state machine does not allow for resource constrain"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/TextractAsync/StateMachine/Role/DefaultPolicy/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM5", reason="access only for bucket and prefix and state machine does not allow for resource constrain"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/TextractAsync/StateMachine/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-SF1", reason="no logging for StateMachine for demo")),
-            (nag.NagPackSuppression(id="AwsSolutions-SF2", reason="no X-Ray logging for demo")) ] )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/TextractAsync/TextractTaskTokenTable/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-DDB3",
+                        reason="no point-in-time-recovery required for demo",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/TextractAsync/TextractAsyncSNSRole/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM4",
+                        reason="following Textract SNS best practices",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/TextractAsync/TextractAsyncSNS/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-SNS3", reason="publisher is only Textract"
+                    )
+                ),
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-SNS2", reason="no SNS encryption for demo"
+                    )
+                ),
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/TextractAsync/TextractAsyncCall/ServiceRole/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM4",
+                        reason="using AWSLambdaBasicExecutionRole",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/TextractAsync/TextractAsyncCall/ServiceRole/DefaultPolicy/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM5",
+                        reason="access only for bucket and prefix",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/TextractAsync/TextractAsyncSNSFunction/ServiceRole/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM4",
+                        reason="using AWSLambdaBasicExecutionRole",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/TextractAsync/TextractAsyncSNSFunction/ServiceRole/DefaultPolicy/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM5",
+                        reason="access only for bucket and prefix and state machine does not allow for resource constrain",  # noqa: E501
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/TextractAsync/StateMachine/Role/DefaultPolicy/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM5",
+                        reason="access only for bucket and prefix and state machine does not allow for resource constrain",  # noqa: E501
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/TextractAsync/StateMachine/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-SF1",
+                        reason="no logging for StateMachine for demo",
+                    )
+                ),
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-SF2", reason="no X-Ray logging for demo"
+                    )
+                ),
+            ],
+        )
 
         # Converting the potentially paginated output from Textract to a single JSON file
         textract_async_to_json = tcdk.TextractAsyncToJSON(
@@ -147,10 +293,30 @@ class OpenSearchWorkflow(Stack):
             s3_input_prefix=s3_temp_output_prefix,
         )
 
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/TextractAsyncToJSON2/TextractAsyncToJSON/ServiceRole/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM4", reason="using AWSLambdaBasicExecutionRole"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/TextractAsyncToJSON2/TextractAsyncToJSON/ServiceRole/DefaultPolicy/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM5", reason="wildcard permission is for everything under prefix"))] )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/TextractAsyncToJSON2/TextractAsyncToJSON/ServiceRole/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM4",
+                        reason="using AWSLambdaBasicExecutionRole",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/TextractAsyncToJSON2/TextractAsyncToJSON/ServiceRole/DefaultPolicy/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM5",
+                        reason="wildcard permission is for everything under prefix",
+                    )
+                )
+            ],
+        )
 
         # For the import into OpenSearch, best practice is to use the bulk format
         # This Lambda creates a bulk for each split from the DocumentSplitter
@@ -176,15 +342,59 @@ class OpenSearchWorkflow(Stack):
             result_path="$.opensearch_output_location",
         )
 
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/GenerateOpenSearchBatch/TextractCSVGenerator/ServiceRole/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM4", reason="using AWSLambdaBasicExecutionRole"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/GenerateOpenSearchBatch/TextractCSVGenerator/ServiceRole/DefaultPolicy/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM5", reason="wildcard permission is for everything under prefix"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/GenerateOpenSearchBatch/StateMachine/Role/DefaultPolicy/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM5", reason="wildcard permission is for everything under prefix"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/GenerateOpenSearchBatch/StateMachine/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-SF1", reason="no logging for StateMachine for demo")),
-            (nag.NagPackSuppression(id="AwsSolutions-SF2", reason="no X-Ray logging for demo")) ] )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/GenerateOpenSearchBatch/TextractCSVGenerator/ServiceRole/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM4",
+                        reason="using AWSLambdaBasicExecutionRole",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/GenerateOpenSearchBatch/TextractCSVGenerator/ServiceRole/DefaultPolicy/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM5",
+                        reason="wildcard permission is for everything under prefix",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/GenerateOpenSearchBatch/StateMachine/Role/DefaultPolicy/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM5",
+                        reason="wildcard permission is for everything under prefix",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/GenerateOpenSearchBatch/StateMachine/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-SF1",
+                        reason="no logging for StateMachine for demo",
+                    )
+                ),
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-SF2", reason="no X-Ray logging for demo"
+                    )
+                ),
+            ],
+        )
 
         # Pushing the OpenSearch bulk import file into OpenSearch
         lambda_opensearch_push = lambda_.DockerImageFunction(  # type: ignore
@@ -203,22 +413,44 @@ class OpenSearchWorkflow(Stack):
             iam.PolicyStatement(
                 actions=["s3:Get*", "s3:List*"],
                 resources=[
-                    document_bucket.bucket_arn + "/" + s3_opensearch_output_prefix ,
-                    document_bucket.bucket_arn + "/" + s3_opensearch_output_prefix + "/*",
+                    document_bucket.bucket_arn + "/" + s3_opensearch_output_prefix,
+                    document_bucket.bucket_arn
+                    + "/"
+                    + s3_opensearch_output_prefix
+                    + "/*",
                 ],
             )
         )
 
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/LambdaOpenSearchPush/ServiceRole/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM4", reason="using AWSLambdaBasicExecutionRole"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/LambdaOpenSearchPush/ServiceRole/DefaultPolicy/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM5", reason="wildcard permission is for everything under prefix"))] )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/LambdaOpenSearchPush/ServiceRole/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM4",
+                        reason="using AWSLambdaBasicExecutionRole",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/LambdaOpenSearchPush/ServiceRole/DefaultPolicy/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM5",
+                        reason="wildcard permission is for everything under prefix",
+                    )
+                )
+            ],
+        )
 
         task_lambda_opensearch_push = tasks.LambdaInvoke(
             self,
             "OpenSearchPushInvoke",
             lambda_function=lambda_opensearch_push,  # type: ignore
-            timeout=Duration.seconds(900),
             payload_response_only=True,
             result_path="$.OpenSearchPush",
         )
@@ -247,21 +479,68 @@ class OpenSearchWorkflow(Stack):
             ),
         )
 
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/OpenSearchResources/CognitoUserPool/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-COG1", reason="no password policy for demo"
+                    )
+                ),
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-COG2", reason="no MFA for demo"
+                    )
+                ),
+            ],
+        )
 
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/OpenSearchResources/CognitoUserPool/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-COG1", reason="no password policy for demo")),
-            (nag.NagPackSuppression(id="AwsSolutions-COG2", reason="no MFA for demo")) ] )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/OpenSearchResources/CognitoAuthorizedRole/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM5", reason="wildcard for es:ESHttp*"
+                    )
+                )
+            ],
+        )
 
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/OpenSearchResources/CognitoAuthorizedRole/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM5", reason="wildcard for es:ESHttp*")) ] )
-
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/OpenSearchResources/OpenSearchDomain", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-OS1", reason="no VPC for demo")),
-            (nag.NagPackSuppression(id="AwsSolutions-OS3", reason="users have to be authorized to access, not limit on IP for demo")),
-            (nag.NagPackSuppression(id="AwsSolutions-OS4", reason="no dedicated master for demo")),
-            (nag.NagPackSuppression(id="AwsSolutions-OS7", reason="no zone awareness for demo")),
-            (nag.NagPackSuppression(id="AwsSolutions-OS9", reason="no minimally publish SEARCH_SLOW_LOGS and INDEX_SLOW_LOGS to CloudWatch Logs.")) 
-            ] )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/OpenSearchResources/OpenSearchDomain",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-OS1", reason="no VPC for demo"
+                    )
+                ),
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-OS3",
+                        reason="users have to be authorized to access, not limit on IP for demo",
+                    )
+                ),
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-OS4", reason="no dedicated master for demo"
+                    )
+                ),
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-OS7", reason="no zone awareness for demo"
+                    )
+                ),
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-OS9",
+                        reason="no minimally publish SEARCH_SLOW_LOGS and INDEX_SLOW_LOGS to CloudWatch Logs.",
+                    )
+                ),
+            ],
+        )
         # The mapping function is just to generate an empty output from the Map state
         lambda_opensearch_mapping: lambda_.IFunction = lambda_.DockerImageFunction(  # type: ignore
             self,
@@ -274,8 +553,18 @@ class OpenSearchWorkflow(Stack):
             environment={},
         )
 
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/LambdaOpenSearchMapping/ServiceRole/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM4", reason="using AWSLambdaBasicExecutionRole"))] )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/LambdaOpenSearchMapping/ServiceRole/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM4",
+                        reason="using AWSLambdaBasicExecutionRole",
+                    )
+                )
+            ],
+        )
 
         task_opensearch_mapping = tasks.LambdaInvoke(
             self,
@@ -302,8 +591,18 @@ class OpenSearchWorkflow(Stack):
             environment={"LOG_LEVEL": "ERROR"},
         )
 
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/SetMetaDataFunction/ServiceRole/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM4", reason="using AWSLambdaBasicExecutionRole"))] )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/SetMetaDataFunction/ServiceRole/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM4",
+                        reason="using AWSLambdaBasicExecutionRole",
+                    )
+                )
+            ],
+        )
 
         # Setting meta data like the origin filename and the page number for the ingest to OpenSearch
         set_meta_data_task = tasks.LambdaInvoke(
@@ -318,7 +617,7 @@ class OpenSearchWorkflow(Stack):
             errors=["Lambda.TooManyRequestsException"],
         )
 
-        ## Creating the StepFunction workflow
+        # Creating the StepFunction workflow
         async_chain = sfn.Chain.start(textract_async_task).next(textract_async_to_json)
 
         textract_async_to_json.next(set_meta_data_task).next(generate_open_search_batch)
@@ -335,9 +634,9 @@ class OpenSearchWorkflow(Stack):
                 "manifest": {
                     "s3Path": sfn.JsonPath.string_at(
                         "States.Format('s3://{}/{}/{}', \
-                  $.documentSplitterS3OutputBucket, \
-                  $.documentSplitterS3OutputPath, \
-                  $$.Map.Item.Value)"
+                        $.documentSplitterS3OutputBucket, \
+                        $.documentSplitterS3OutputPath, \
+                        $$.Map.Item.Value)"
                     )
                 },
                 "mime": sfn.JsonPath.string_at("$.mime"),
@@ -352,13 +651,41 @@ class OpenSearchWorkflow(Stack):
         )
 
         # GENERIC
-        state_machine = sfn.StateMachine(self, workflow_name, definition=workflow_chain)
+        state_machine = sfn.StateMachine(
+            self,
+            workflow_name,
+            definition_body=sfn.DefinitionBody.from_chainable(workflow_chain),
+        )
 
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/OpenSearchWorkflow/Role/DefaultPolicy/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM5", reason="limited to lambda:InvokeFunction for the Lambda functions used in the workflow"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/OpenSearchWorkflow/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-SF1", reason="no logging for StateMachine for demo")),
-            (nag.NagPackSuppression(id="AwsSolutions-SF2", reason="no X-Ray logging for demo")) ] )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/OpenSearchWorkflow/Role/DefaultPolicy/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM5",
+                        reason="limited to lambda:InvokeFunction for the Lambda functions used in the workflow",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/OpenSearchWorkflow/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-SF1",
+                        reason="no logging for StateMachine for demo",
+                    )
+                ),
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-SF2", reason="no X-Ray logging for demo"
+                    )
+                ),
+            ],
+        )
 
         # The StartThrottle triggers based on event_source (in this case S3 OBJECT_CREATED)
         # and handles all the complexity of making sure the limits or bottlenecks are not exceeded
@@ -373,26 +700,114 @@ class OpenSearchWorkflow(Stack):
             lambda_log_level="ERROR",
             event_source=[s3_event_source],
         )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/ExecutionThrottle/DocumentQueue/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-SQS3", reason="no DLQ required by design, DDB to show status of processing")),
-            (nag.NagPackSuppression(id="AwsSolutions-SQS4", reason="no SSL forcing for demo")) ] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/ExecutionThrottle/IDPDocumentStatusTable/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-DDB3", reason="no DDB point in time recovery for demo")), ] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/ExecutionThrottle/IDPExecutionsCounterTable/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-DDB3", reason="no DDB point in time recovery for demo")), ] )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/ExecutionThrottle/DocumentQueue/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-SQS3",
+                        reason="no DLQ required by design, DDB to show status of processing",
+                    )
+                ),
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-SQS4", reason="no SSL forcing for demo"
+                    )
+                ),
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/ExecutionThrottle/IDPDocumentStatusTable/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-DDB3",
+                        reason="no DDB point in time recovery for demo",
+                    )
+                ),
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/ExecutionThrottle/IDPExecutionsCounterTable/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-DDB3",
+                        reason="no DDB point in time recovery for demo",
+                    )
+                ),
+            ],
+        )
 
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/ExecutionThrottle/ExecutionsStartThrottle/ServiceRole/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM4", reason="using AWSLambdaBasicExecutionRole"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/ExecutionThrottle/ExecutionsStartThrottle/ServiceRole/DefaultPolicy/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM5", reason="wildcard permission is for everything under prefix"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/ExecutionThrottle/ExecutionsQueueWorker/ServiceRole/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM4", reason="using AWSLambdaBasicExecutionRole"))] )
-        nag.NagSuppressions.add_resource_suppressions_by_path(stack=self, path="OpenSearchWorkflow/ExecutionThrottle/ExecutionsThrottleCounterReset/ServiceRole/Resource", suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM4", reason="using AWSLambdaBasicExecutionRole"))] )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/ExecutionThrottle/ExecutionsStartThrottle/ServiceRole/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM4",
+                        reason="using AWSLambdaBasicExecutionRole",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/ExecutionThrottle/ExecutionsStartThrottle/ServiceRole/DefaultPolicy/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM5",
+                        reason="wildcard permission is for everything under prefix",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/ExecutionThrottle/ExecutionsQueueWorker/ServiceRole/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM4",
+                        reason="using AWSLambdaBasicExecutionRole",
+                    )
+                )
+            ],
+        )
+        nag.NagSuppressions.add_resource_suppressions_by_path(
+            stack=self,
+            path="OpenSearchWorkflow/ExecutionThrottle/ExecutionsThrottleCounterReset/ServiceRole/Resource",
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM4",
+                        reason="using AWSLambdaBasicExecutionRole",
+                    )
+                )
+            ],
+        )
 
-        nag.NagSuppressions.add_stack_suppressions(stack=self, suppressions=[
-            (nag.NagPackSuppression(id="AwsSolutions-IAM4", reason="using AWSLambdaBasicExecutionRole")),
-            (nag.NagPackSuppression(id="AwsSolutions-IAM5", reason="internal CDK to set bucket notifications: https://github.com/aws/aws-cdk/issues/9552 "))] )
+        nag.NagSuppressions.add_stack_suppressions(
+            stack=self,
+            suppressions=[
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM4",
+                        reason="using AWSLambdaBasicExecutionRole",
+                    )
+                ),
+                (
+                    nag.NagPackSuppression(
+                        id="AwsSolutions-IAM5",
+                        reason="internal CDK to set bucket notifications: https://github.com/aws/aws-cdk/issues/9552 ",
+                    )
+                ),
+            ],
+        )
 
         queue_url_urlencoded = ""
         if sf_executions_start_throttle.document_queue:
@@ -419,12 +834,12 @@ class OpenSearchWorkflow(Stack):
         CfnOutput(
             self,
             "StepFunctionFlowLink",
-            value=f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}",
+            value=f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}",   # noqa: E501
         ),
         CfnOutput(
             self,
             "DocumentQueueLink",
-            value=f"https://{current_region}.console.aws.amazon.com/sqs/v2/home?region={current_region}#/queues/{queue_url_urlencoded}",  # type: ignore
+            value=f"https://{current_region}.console.aws.amazon.com/sqs/v2/home?region={current_region}#/queues/{queue_url_urlencoded}",  # type: ignore   # noqa: E501
         )
         CfnOutput(
             self,
@@ -434,12 +849,12 @@ class OpenSearchWorkflow(Stack):
         CfnOutput(
             self,
             "OpenSearchLink",
-            value=f"https://{current_region}.console.aws.amazon.com/aos/home?region={current_region}#/opensearch/domains/{lambda_to_opensearch.open_search_domain.domain_name}",
+            value=f"https://{current_region}.console.aws.amazon.com/aos/home?region={current_region}#/opensearch/domains/{lambda_to_opensearch.open_search_domain.domain_name}",   # noqa: E501
         )
         # Link to UserPool
         CfnOutput(
             self,
             "CognitoUserPoolLink",
-            value=f"https://{current_region}.console.aws.amazon.com/cognito/v2/idp/user-pools/{lambda_to_opensearch.user_pool.user_pool_id}/users?region={current_region}",
+            value=f"https://{current_region}.console.aws.amazon.com/cognito/v2/idp/user-pools/{lambda_to_opensearch.user_pool.user_pool_id}/users?region={current_region}",   # noqa: E501
         )
         Aspects.of(self).add(nag.AwsSolutionsChecks())

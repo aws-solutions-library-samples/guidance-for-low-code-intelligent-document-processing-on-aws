@@ -62,5 +62,6 @@ BedrockIDPWorkflow(app, "BedrockIDPWorkflow")
 BedrockIDP2Workflow(app, "BedrockIDP2Workflow")
 TestWorkflow(app, "TestWorkflow")
 SimpleAsyncWorkflowLayout(app, "SimpleAsyncWorkflowLayout")
+SimpleAsyncWorkflowLayout(app, "AIM306Test")
 
 app.synth()

@@ -22,6 +22,7 @@ class SimpleAsyncWorkflowLayout(Stack):
         s3_upload_prefix = "uploads"
         s3_output_prefix = "textract-output"
         s3_temp_output_prefix = "textract-temp-output"
+        s3_txt_output_prefix = "textract-text-output"
 
         s3_output_bucket = CfnParameter(
             self,
@@ -36,7 +37,7 @@ class SimpleAsyncWorkflowLayout(Stack):
             "TextractSimpleAsyncWorkflow",
             bucket_name=s3_output_bucket.value_as_string,
         )
-        workflow_name = "SimpleAsyncWorkflow"
+        workflow_name = "AIM306"
 
         decider_task = tcdk.TextractPOCDecider(
             self,
@@ -69,6 +70,25 @@ class SimpleAsyncWorkflowLayout(Stack):
             s3_output_bucket=s3_output_bucket.value_as_string,
         )
 
+        # simple text generator for now
+        generate_text = tcdk.TextractGenerateCSV(
+            self,
+            "GenerateText",
+            csv_s3_output_bucket=document_bucket.bucket_name,
+            csv_s3_output_prefix=s3_txt_output_prefix,
+            output_type="LINES",
+            lambda_log_level="DEBUG",
+            integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+            input=sfn.TaskInput.from_object(
+                {
+                    "Token": sfn.JsonPath.task_token,
+                    "ExecutionId": sfn.JsonPath.string_at("$$.Execution.Id"),
+                    "Payload": sfn.JsonPath.entire_payload,
+                }
+            ),
+            result_path="$.txt_output_location",
+        )
+
         # TBD Linearizer
         # textract_linearized_layout = tcdk.TextractAsyncJSONToLayout(
         #     self,
@@ -79,9 +99,9 @@ class SimpleAsyncWorkflowLayout(Stack):
 
         async_chain = sfn.Chain.start(textract_async_task).next(
             textract_async_to_json
-        )  # .next(textract_linearized_layout)
+        )
 
-        workflow_chain = sfn.Chain.start(decider_task).next(async_chain)
+        workflow_chain = sfn.Chain.start(decider_task).next(async_chain).next(generate_text)
 
         # GENERIC
         state_machine = sfn.StateMachine(self, workflow_name, definition=workflow_chain)

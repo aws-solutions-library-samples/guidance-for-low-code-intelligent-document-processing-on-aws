@@ -38,8 +38,11 @@ def lambda_handler(event, _):
             s3_key = unquote_plus(record['s3']['object']['key'])
         elif event_source == "aws:sqs":
             message = json.loads(record["body"])
-            s3_bucket = message['bucket']
-            s3_key = message['key']
+            if 'Records' in message and len(message["Records"]) > 0:
+                first_record = message["Records"][0]["s3"]
+                if 'object' in first_record and 'key' in first_record['object']:
+                    s3_bucket = first_record['bucket']['name']
+                    s3_key = first_record['object']['key']
         else:
             logger.error('unsupported event_source: {}'.format(event_source))
 

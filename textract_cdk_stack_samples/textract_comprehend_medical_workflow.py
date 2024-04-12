@@ -64,7 +64,7 @@ class TextractComprehendMedicalWorkflow(Stack):
 
         comprehendmedical_task = tcdk.TextractComprehendMedical(
             self,
-            "ComprehendMedical")
+            "ComprehendMedical",comprehendMedicalJobType="ICD10")
 
         workflow_chain = sfn.Chain \
             .start(decider_task) \

@@ -32,7 +32,7 @@ class TextractComprehendMedicalWorkflow(Stack):
 
         for cm_task in comprehend_medical_operations:
             s3_upload_prefix = f'uploads-{cm_task.lower()}'
-            s3_output_prefix = f'textract-output-{cm_task.lower()}'
+            s3_output_prefix = f'textract-output-json-{cm_task.lower()}'
             s3_temp_output_prefix = f'temp-{cm_task.lower()}'
             workflow_name = f'TextractComprehendMedical-{cm_task.lower()}'
 

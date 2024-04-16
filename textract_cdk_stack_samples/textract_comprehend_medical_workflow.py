@@ -43,7 +43,7 @@ class TextractComprehendMedicalWorkflow(Stack):
 
             textract_async_task = tcdk.TextractGenericAsyncSfnTask(
                 self,
-                "TextractAsync",
+                f'TextractAsync{cm_task}',
                 s3_output_bucket=s3_output_bucket,
                 s3_temp_output_prefix=s3_temp_output_prefix,
                 integration_pattern=sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
@@ -61,14 +61,14 @@ class TextractComprehendMedicalWorkflow(Stack):
 
             textract_async_to_json = tcdk.TextractAsyncToJSON(
                 self,
-                "TextractAsyncToJSON2",
+                f'TextractAsyncToJSON2{cm_task}',
                 s3_output_prefix=s3_output_prefix,
                 s3_output_bucket=s3_output_bucket)
 
             comprehendmedical_task = tcdk.TextractComprehendMedical(
                 self,
-                "ComprehendMedical",
-                comprehendMedicalJobType=cm_task)
+                f'ComprehendMedical{cm_task}',
+                comprehend_medical_job_type=cm_task)
 
             workflow_chain = sfn.Chain \
                 .start(decider_task) \
@@ -83,7 +83,7 @@ class TextractComprehendMedicalWorkflow(Stack):
 
             lambda_step_start_step_function = lambda_.DockerImageFunction(
                 self,
-                "LambdaStartStepFunctionGeneric",
+                f'LambdaStartStepFunctionGeneric{cm_task}',
                 code=lambda_.DockerImageCode.from_image_asset(
                     os.path.join(script_location, '../lambda/startstepfunction')),
                 memory_size=128,
@@ -103,16 +103,16 @@ class TextractComprehendMedicalWorkflow(Stack):
             # OUTPUT
             CfnOutput(
                 self,
-                "DocumentUploadLocation",
+                f'DocumentUploadLocation{cm_task}',
                 value=f"s3://{document_bucket.bucket_name}/{s3_upload_prefix}/")
             CfnOutput(
                 self,
-                "StartStepFunctionLambdaLogGroup",
+                f'StartStepFunctionLambdaLogGroup{cm_task}',
                 value=lambda_step_start_step_function.log_group.log_group_name)
             current_region = Stack.of(self).region
             CfnOutput(
                 self,
-                'StepFunctionFlowLink',
+                f'StepFunctionFlowLink{cm_task}',
                 value=
                 f"https://{current_region}.console.aws.amazon.com/states/home?region={current_region}#/statemachines/view/{state_machine.state_machine_arn}"
             )

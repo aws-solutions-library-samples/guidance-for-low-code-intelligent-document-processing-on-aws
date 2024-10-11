@@ -18,6 +18,7 @@ from textract_cdk_stack_samples.pdf_mapper_to_fhir_workflow import PdfMapperToFh
 from textract_cdk_stack_samples.simple_searchPDF import SimpleSearchPDF
 from textract_cdk_stack_samples.open_search_workflow import OpenSearchWorkflow
 from textract_cdk_stack_samples.test_workflow import TestWorkflow
+from textract_cdk_stack_samples.textract_comprehend_medical_workflow import TextractComprehendMedicalWorkflow
 
 app = cdk.App()
 
@@ -56,5 +57,6 @@ PdfMapperToFhirWorkflow(app, "PdfMapperToFhirWorkflow")
 SimpleSearchPDF(app, "SimpleSearchPDF")
 OpenSearchWorkflow(app, "OpenSearchWorkflow")
 TestWorkflow(app, "TestWorkflow")
+TextractComprehendMedicalWorkflow(app, "TextractComprehendMedicalWorkflow")
 
 app.synth()
